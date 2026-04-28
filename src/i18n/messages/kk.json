@@ -1,0 +1,110 @@
+{
+  "site": {
+    "name": "testgov.kz",
+    "tagline": "Мемлекеттік тестілеуге дайындық"
+  },
+  "nav": {
+    "categories": "Санаттар",
+    "dashboard": "Кабинет",
+    "admin": "Әкімші панелі",
+    "login": "Кіру",
+    "register": "Тіркелу",
+    "logout": "Шығу"
+  },
+  "landing": {
+    "hero_title": "Мемлекеттік қызмет тесттеріне нақты дайындалыңыз",
+    "hero_subtitle": "Қазақ және орыс тілдеріндегі тесттер жинағы — нақты емтихандай.",
+    "cta_browse": "Бағдарламаны таңдау",
+    "cta_login": "Тіркелгім бар",
+    "feature_1_title": "Санаттар мен бағдарламалар",
+    "feature_1_text": "Әкімшілік қызмет, құқық қорғау, сандық тесттер және жеке қасиеттер.",
+    "feature_2_title": "Шынайы қозғалтқыш",
+    "feature_2_text": "Уақыт, әрекеттер шегі, араластыру, жедел кері байланыс — нағыз емтихан сияқты.",
+    "feature_3_title": "Екі тіл, әр түрлі сұрақтар",
+    "feature_3_text": "Әр тілде өзінің сұрақтары — аударма емес."
+  },
+  "auth": {
+    "login_title": "Кіру",
+    "register_title": "Тіркелу",
+    "email": "Email",
+    "password": "Құпиясөз",
+    "name": "Аты-жөні",
+    "submit_login": "Кіру",
+    "submit_register": "Тіркелгі құру",
+    "no_account": "Тіркелгі жоқ па?",
+    "have_account": "Тіркелгім бар",
+    "invalid_credentials": "Email немесе құпиясөз қате",
+    "register_failed": "Тіркелгіні құру мүмкін болмады"
+  },
+  "categories": {
+    "title": "Санаттар",
+    "programs_count": "бағдарлама"
+  },
+  "program": {
+    "modules": "Модульдер",
+    "buy": "Қолжетімділікті сатып алу",
+    "buy_for": "{price} үшін сатып алу",
+    "duration": "{days} күндік қолжетімділік",
+    "owned_until": "Қолжетімділік: {date} дейін",
+    "no_access": "Қолжетімділік жоқ — бағдарламаны сатып алыңыз"
+  },
+  "module": {
+    "tests": "Тесттер",
+    "law_content": "Оқу материалы"
+  },
+  "test": {
+    "start": "Тестті бастау",
+    "time_limit": "Уақыт шегі: {minutes} мин",
+    "no_time_limit": "Уақыт шегі жоқ",
+    "max_attempts": "Әрекеттер: {n}",
+    "unlimited_attempts": "Шексіз әрекеттер",
+    "passing_score": "Өту балы: {n}%",
+    "questions_count": "Сұрақтар: {n}",
+    "mode": "Режим: {mode}",
+    "mode_CLASSIC": "Классикалық",
+    "mode_CLASSIC_WITH_BACK": "Қайту арқылы классикалық",
+    "mode_INSTANT_FEEDBACK": "Жедел кері байланыс",
+    "mode_ALL_QUESTIONS_PAGE": "Барлық сұрақтар бір бетте",
+    "next": "Келесі",
+    "prev": "Артқа",
+    "finish": "Аяқтау",
+    "submit_answer": "Жауап беру",
+    "question_n": "{total} ішінен {n} сұрақ",
+    "time_left": "Қалды: {time}",
+    "result_score": "Сіздің нәтижеңіз: {score}%",
+    "result_passed": "Тест өтілді",
+    "result_failed": "Тест өтілмеді",
+    "review_answers": "Жауаптарды көру",
+    "back_to_module": "Модульге",
+    "correct": "Дұрыс",
+    "incorrect": "Қате",
+    "no_attempts_left": "Әрекеттер бітті",
+    "auth_required": "Тестті өту үшін кіріңіз",
+    "no_access": "Бұл тестке қол жетімді емес"
+  },
+  "dashboard": {
+    "title": "Кабинет",
+    "history": "Әрекеттер тарихы",
+    "active_access": "Белсенді қолжетімділік",
+    "no_history": "Әзірге аяқталған тесттер жоқ",
+    "no_access": "Әзірге белсенді қолжетімділік жоқ",
+    "expires_at": "Аяқталады: {date}",
+    "score": "Балл",
+    "date": "Күні",
+    "test_name": "Тест",
+    "result": "Нәтиже",
+    "view": "Ашу"
+  },
+  "common": {
+    "loading": "Жүктелуде…",
+    "save": "Сақтау",
+    "cancel": "Бас тарту",
+    "delete": "Жою",
+    "edit": "Өңдеу",
+    "create": "Құру",
+    "back": "Артқа",
+    "yes": "Иә",
+    "no": "Жоқ",
+    "language": "Тіл"
+  }
+}

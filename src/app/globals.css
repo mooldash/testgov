@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --primary: 222 47% 11%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 222 47% 11%;
+
+    --radius: 0.625rem;
+    --font-sans: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* Prose styles for rendered HTML content (laws, questions) */
+.prose-content {
+  @apply text-foreground leading-relaxed;
+}
+.prose-content h1 { @apply text-2xl font-semibold mt-6 mb-3; }
+.prose-content h2 { @apply text-xl font-semibold mt-5 mb-2; }
+.prose-content h3 { @apply text-lg font-semibold mt-4 mb-2; }
+.prose-content p { @apply mb-3; }
+.prose-content ul { @apply list-disc pl-6 mb-3; }
+.prose-content ol { @apply list-decimal pl-6 mb-3; }
+.prose-content li { @apply mb-1; }
+.prose-content strong { @apply font-semibold; }
+.prose-content em { @apply italic; }
+.prose-content a { @apply text-primary underline underline-offset-2; }
+.prose-content blockquote { @apply border-l-4 border-border pl-4 italic text-muted-foreground my-3; }
+.prose-content img { @apply rounded-lg max-w-full h-auto my-3; }
+.prose-content iframe { @apply w-full aspect-video rounded-lg my-3; }
+.prose-content code { @apply bg-muted px-1.5 py-0.5 rounded text-sm; }
+.prose-content pre { @apply bg-muted p-3 rounded-lg overflow-x-auto my-3; }
+
+/* TipTap editor */
+.ProseMirror {
+  @apply min-h-[160px] p-3 outline-none;
+}
+.ProseMirror:focus {
+  outline: none;
+}
+.ProseMirror p { @apply mb-2; }
+.ProseMirror h2 { @apply text-xl font-semibold mt-3 mb-2; }
+.ProseMirror ul { @apply list-disc pl-6; }
+.ProseMirror ol { @apply list-decimal pl-6; }
+.ProseMirror img { @apply rounded-lg max-w-full h-auto; }
+.ProseMirror iframe { @apply w-full aspect-video rounded-lg; }

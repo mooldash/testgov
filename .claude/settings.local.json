@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --prefix /Users/mooldash/Desktop/Testgov run all)",
+      "Bash(curl -sS -o /dev/null -w \"HTTP %{http_code} → %{redirect_url}\\\\n\" http://localhost:3000/admin)",
+      "Bash(curl -sS -o /dev/null -w \"HTTP %{http_code} on /ru/login\\\\n\" http://localhost:3000/ru/login)",
+      "Bash(docker compose *)"
+    ]
+  }
+}

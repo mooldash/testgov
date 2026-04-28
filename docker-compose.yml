@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: testgov
+      POSTGRES_PASSWORD: testgov
+      POSTGRES_DB: testgov
+    # Internal port only — uncomment to expose for external clients (e.g. "5433:5432")
+    expose:
+      - "5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testgov -d testgov"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://testgov:testgov@postgres:5432/testgov?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:-dev-secret-change-me-in-production-please-32}
+      AUTH_TRUST_HOST: "true"
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+      STORAGE_DRIVER: local
+      UPLOAD_DIR: ./uploads
+      PUBLIC_UPLOAD_PATH: /uploads
+      PAYMENT_PROVIDER: stub
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@testgov.kz}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-changeme}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+      - ./public:/app/public
+      - ./uploads:/app/uploads
+      - ./next.config.mjs:/app/next.config.mjs
+      - ./tailwind.config.ts:/app/tailwind.config.ts
+      - ./postcss.config.mjs:/app/postcss.config.mjs
+      - ./tsconfig.json:/app/tsconfig.json
+
+volumes:
+  pgdata:

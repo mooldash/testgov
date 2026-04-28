@@ -1,0 +1,258 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Locale {
+  KK
+  RU
+}
+
+enum ModuleType {
+  LAW
+  TEST_COLLECTION
+}
+
+enum TestMode {
+  CLASSIC
+  CLASSIC_WITH_BACK
+  INSTANT_FEEDBACK
+  ALL_QUESTIONS_PAGE
+}
+
+enum AccessSource {
+  PURCHASE
+  MANUAL
+  TRIAL
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  role         Role     @default(USER)
+  localePref   Locale   @default(RU)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  attempts Attempt[]
+  access   UserAccess[]
+  orders   Order[]
+}
+
+model Category {
+  id            String  @id @default(cuid())
+  slug          String  @unique
+  nameKk        String
+  nameRu        String
+  descriptionKk String?
+  descriptionRu String?
+  order         Int     @default(0)
+  programs      Program[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Program {
+  id            String   @id @default(cuid())
+  categoryId    String
+  category      Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  slug          String   @unique
+  nameKk        String
+  nameRu        String
+  descriptionKk String?
+  descriptionRu String?
+  priceTenge    Int      @default(0)
+  durationDays  Int      @default(30)
+  order         Int      @default(0)
+  isPublished   Boolean  @default(true)
+
+  modules Module[]
+  access  UserAccess[]
+  orders  Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+}
+
+model Module {
+  id          String     @id @default(cuid())
+  programId   String
+  program     Program    @relation(fields: [programId], references: [id], onDelete: Cascade)
+  type        ModuleType @default(TEST_COLLECTION)
+  order       Int        @default(0)
+  isPublished Boolean    @default(true)
+
+  contents ModuleContent[]
+  tests    Test[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([programId])
+}
+
+model ModuleContent {
+  id       String @id @default(cuid())
+  moduleId String
+  module   Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  locale   Locale
+  title    String
+  bodyHtml String @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([moduleId, locale])
+}
+
+model Test {
+  id       String @id @default(cuid())
+  moduleId String
+  module   Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  locale   Locale
+  title    String
+
+  shuffleQuestions   Boolean  @default(false)
+  shuffleAnswers     Boolean  @default(false)
+  timeLimitSec       Int?
+  maxAttempts        Int?
+  requireAuth        Boolean  @default(true)
+  requireAnswer      Boolean  @default(false)
+  showScoreDuring    Boolean  @default(false)
+  showCorrectAnswers Boolean  @default(true)
+  mode               TestMode @default(CLASSIC)
+  emailNotifications Boolean  @default(false)
+  passingScore       Int      @default(70)
+  questionLimit      Int?
+  isPublished        Boolean  @default(true)
+
+  questions Question[]
+  attempts  Attempt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([moduleId, locale])
+}
+
+model Question {
+  id              String  @id @default(cuid())
+  testId          String
+  test            Test    @relation(fields: [testId], references: [id], onDelete: Cascade)
+  order           Int     @default(0)
+  textHtml        String
+  explanationHtml String?
+  mediaUrl        String?
+  youtubeId       String?
+
+  answers        Answer[]
+  attemptAnswers AttemptAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([testId])
+}
+
+model Answer {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  textHtml   String
+  isCorrect  Boolean  @default(false)
+  order      Int      @default(0)
+
+  attemptAnswers AttemptAnswer[]
+
+  @@index([questionId])
+}
+
+model Attempt {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  testId        String
+  test          Test      @relation(fields: [testId], references: [id], onDelete: Cascade)
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+  score         Int?
+  passed        Boolean?
+  questionOrder Json
+
+  answers AttemptAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([testId])
+}
+
+model AttemptAnswer {
+  id         String   @id @default(cuid())
+  attemptId  String
+  attempt    Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answerId   String?
+  answer     Answer?  @relation(fields: [answerId], references: [id], onDelete: SetNull)
+  isCorrect  Boolean  @default(false)
+  answeredAt DateTime @default(now())
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+}
+
+model UserAccess {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programId String
+  program   Program      @relation(fields: [programId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  source    AccessSource @default(MANUAL)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, programId])
+  @@index([expiresAt])
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programId    String
+  program      Program     @relation(fields: [programId], references: [id], onDelete: Cascade)
+  amountTenge  Int
+  status       OrderStatus @default(PENDING)
+  providerName String      @default("stub")
+  providerRef  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}

@@ -1,0 +1,110 @@
+{
+  "site": {
+    "name": "testgov.kz",
+    "tagline": "Подготовка к государственному тестированию"
+  },
+  "nav": {
+    "categories": "Категории",
+    "dashboard": "Кабинет",
+    "admin": "Админ-панель",
+    "login": "Войти",
+    "register": "Регистрация",
+    "logout": "Выйти"
+  },
+  "landing": {
+    "hero_title": "Готовьтесь к тестам государственной службы — серьёзно",
+    "hero_subtitle": "Полный набор тестов на казахском и русском с реалистичной симуляцией экзамена.",
+    "cta_browse": "Выбрать программу",
+    "cta_login": "Уже есть аккаунт",
+    "feature_1_title": "Категории и программы",
+    "feature_1_text": "Административная служба, правоохранительные органы, числовые тесты и личные качества.",
+    "feature_2_title": "Реалистичный движок",
+    "feature_2_text": "Время, лимиты попыток, перемешивание, мгновенная обратная связь — всё как на реальном экзамене.",
+    "feature_3_title": "Два языка, разные банки вопросов",
+    "feature_3_text": "Каждый язык — свой набор вопросов, а не перевод."
+  },
+  "auth": {
+    "login_title": "Вход",
+    "register_title": "Регистрация",
+    "email": "Email",
+    "password": "Пароль",
+    "name": "Имя",
+    "submit_login": "Войти",
+    "submit_register": "Создать аккаунт",
+    "no_account": "Нет аккаунта?",
+    "have_account": "Уже есть аккаунт?",
+    "invalid_credentials": "Неверный email или пароль",
+    "register_failed": "Не удалось создать аккаунт"
+  },
+  "categories": {
+    "title": "Категории",
+    "programs_count": "программ"
+  },
+  "program": {
+    "modules": "Модули",
+    "buy": "Купить доступ",
+    "buy_for": "Купить за {price}",
+    "duration": "{days} дней доступа",
+    "owned_until": "Доступ до {date}",
+    "no_access": "Нет доступа — приобретите программу"
+  },
+  "module": {
+    "tests": "Тесты",
+    "law_content": "Учебный материал"
+  },
+  "test": {
+    "start": "Начать тест",
+    "time_limit": "Лимит времени: {minutes} мин",
+    "no_time_limit": "Без лимита времени",
+    "max_attempts": "Попыток: {n}",
+    "unlimited_attempts": "Неограниченные попытки",
+    "passing_score": "Проходной балл: {n}%",
+    "questions_count": "Вопросов: {n}",
+    "mode": "Режим: {mode}",
+    "mode_CLASSIC": "Классический",
+    "mode_CLASSIC_WITH_BACK": "Классический с возвратом",
+    "mode_INSTANT_FEEDBACK": "Мгновенная обратная связь",
+    "mode_ALL_QUESTIONS_PAGE": "Все вопросы на одной странице",
+    "next": "Далее",
+    "prev": "Назад",
+    "finish": "Завершить",
+    "submit_answer": "Ответить",
+    "question_n": "Вопрос {n} из {total}",
+    "time_left": "Осталось: {time}",
+    "result_score": "Ваш результат: {score}%",
+    "result_passed": "Тест пройден",
+    "result_failed": "Тест не пройден",
+    "review_answers": "Посмотреть ответы",
+    "back_to_module": "К модулю",
+    "correct": "Правильно",
+    "incorrect": "Неверно",
+    "no_attempts_left": "Закончились попытки",
+    "auth_required": "Войдите, чтобы пройти тест",
+    "no_access": "Нет доступа к этому тесту"
+  },
+  "dashboard": {
+    "title": "Кабинет",
+    "history": "История попыток",
+    "active_access": "Активный доступ",
+    "no_history": "Пока нет завершённых тестов",
+    "no_access": "У вас пока нет активного доступа",
+    "expires_at": "Истекает: {date}",
+    "score": "Балл",
+    "date": "Дата",
+    "test_name": "Тест",
+    "result": "Результат",
+    "view": "Открыть"
+  },
+  "common": {
+    "loading": "Загрузка…",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "delete": "Удалить",
+    "edit": "Редактировать",
+    "create": "Создать",
+    "back": "Назад",
+    "yes": "Да",
+    "no": "Нет",
+    "language": "Язык"
+  }
+}
