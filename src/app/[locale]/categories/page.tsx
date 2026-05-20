@@ -1,10 +1,29 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { isLocale } from '@/i18n/config';
 import { prisma } from '@/lib/prisma';
 import { pluckLocalized } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isLocale(locale)) return {};
+  const t = await getTranslations({ locale, namespace: 'seo' });
+  return {
+    title: t('categories_title'),
+    description: t('categories_description'),
+    alternates: {
+      canonical: `/${locale}/categories`,
+      languages: { ru: '/ru/categories', kk: '/kk/categories', 'x-default': '/ru/categories' },
+    },
+  };
+}
 
 export default async function CategoriesPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -23,7 +42,7 @@ export default async function CategoriesPage({ params }: { params: Promise<{ loc
       <div className="grid sm:grid-cols-2 gap-4">
         {categories.map((c) => (
           <Link key={c.id} href={`/${locale}/categories/${c.slug}`} className="group">
-            <Card className="transition-shadow group-hover:shadow-md">
+            <Card className="border-2 border-transparent ring-1 ring-border transition-colors group-hover:ring-primary group-hover:border-primary/30">
               <CardHeader>
                 <CardTitle>{pluckLocalized(c, 'name', locale)}</CardTitle>
                 <CardDescription>{pluckLocalized(c, 'description', locale)}</CardDescription>

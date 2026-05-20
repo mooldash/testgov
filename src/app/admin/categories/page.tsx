@@ -1,90 +1,79 @@
+import Link from 'next/link';
+import { ChevronRight } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { upsertCategory, deleteCategory } from '../actions';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { deleteCategoryAction } from '../actions';
+import { CategoryDialog, CategoryEditButton } from './CategoryDialog';
 
 export default async function AdminCategoriesPage() {
-  const cats = await prisma.category.findMany({ orderBy: { order: 'asc' }, include: { _count: { select: { programs: true } } } });
+  const cats = await prisma.category.findMany({
+    orderBy: { order: 'asc' },
+    include: { _count: { select: { programs: true } } },
+  });
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Категории</h1>
-      <Card>
-        <CardHeader><CardTitle className="text-base">Новая категория</CardTitle></CardHeader>
-        <CardContent>
-          <form action={upsertCategory} className="grid grid-cols-2 gap-3">
-            <Field label="Slug" name="slug" required />
-            <Field label="Порядок" name="order" type="number" defaultValue="0" />
-            <Field label="Название (RU)" name="nameRu" required />
-            <Field label="Аты (KK)" name="nameKk" required />
-            <FieldText label="Описание (RU)" name="descriptionRu" />
-            <FieldText label="Сипаттама (KK)" name="descriptionKk" />
-            <div className="col-span-2"><Button type="submit">Создать</Button></div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <div className="space-y-3">
-        {cats.map((c) => (
-          <Card key={c.id}>
-            <CardContent className="pt-6">
-              <details>
-                <summary className="cursor-pointer flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">{c.nameRu} <span className="text-muted-foreground">/ {c.nameKk}</span></div>
-                    <div className="text-xs text-muted-foreground">{c.slug} · программ: {c._count.programs}</div>
-                  </div>
-                </summary>
-                <form action={upsertCategory} className="grid grid-cols-2 gap-3 mt-4 border-t pt-4">
-                  <input type="hidden" name="id" value={c.id} />
-                  <Field label="Slug" name="slug" defaultValue={c.slug} required />
-                  <Field label="Порядок" name="order" type="number" defaultValue={String(c.order)} />
-                  <Field label="Название (RU)" name="nameRu" defaultValue={c.nameRu} required />
-                  <Field label="Аты (KK)" name="nameKk" defaultValue={c.nameKk} required />
-                  <FieldText label="Описание (RU)" name="descriptionRu" defaultValue={c.descriptionRu ?? ''} />
-                  <FieldText label="Сипаттама (KK)" name="descriptionKk" defaultValue={c.descriptionKk ?? ''} />
-                  <div className="col-span-2 flex gap-2">
-                    <Button type="submit" size="sm">Сохранить</Button>
-                    <DeleteButton id={c.id} />
-                  </div>
-                </form>
-              </details>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Категории</h1>
+        <CategoryDialog />
       </div>
-    </div>
-  );
-}
 
-function Field({ label, name, ...rest }: { label: string; name: string; type?: string; required?: boolean; defaultValue?: string }) {
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={name}>{label}</Label>
-      <Input id={name} name={name} {...rest} />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-12">#</TableHead>
+            <TableHead>Название (RU / KK)</TableHead>
+            <TableHead>Slug</TableHead>
+            <TableHead className="text-right">Программ</TableHead>
+            <TableHead className="w-32 text-right">Действия</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {cats.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                Пока нет категорий. Нажмите «Добавить».
+              </TableCell>
+            </TableRow>
+          )}
+          {cats.map((c) => (
+            <TableRow key={c.id}>
+              <TableCell className="text-muted-foreground tabular-nums">{c.order}</TableCell>
+              <TableCell>
+                <Link
+                  href={`/admin/categories/${c.slug}`}
+                  className="font-medium hover:text-primary flex items-center gap-1.5 group"
+                >
+                  {c.nameRu}
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                </Link>
+                <div className="text-xs text-muted-foreground">{c.nameKk}</div>
+              </TableCell>
+              <TableCell className="font-mono text-xs text-muted-foreground">{c.slug}</TableCell>
+              <TableCell className="text-right tabular-nums">{c._count.programs}</TableCell>
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-1">
+                  <CategoryEditButton category={c} />
+                  <form action={deleteCategoryAction}>
+                    <input type="hidden" name="id" value={c.id} />
+                    <Button type="submit" size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                      ✕
+                    </Button>
+                  </form>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
-  );
-}
-
-function FieldText({ label, name, defaultValue }: { label: string; name: string; defaultValue?: string }) {
-  return (
-    <div className="space-y-1.5 col-span-2">
-      <Label htmlFor={name}>{label}</Label>
-      <Textarea id={name} name={name} defaultValue={defaultValue} rows={2} />
-    </div>
-  );
-}
-
-function DeleteButton({ id }: { id: string }) {
-  async function onDelete() {
-    'use server';
-    await deleteCategory(id);
-  }
-  return (
-    <form action={onDelete}>
-      <Button type="submit" size="sm" variant="destructive">Удалить</Button>
-    </form>
   );
 }

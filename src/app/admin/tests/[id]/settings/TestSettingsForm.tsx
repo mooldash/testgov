@@ -4,7 +4,15 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { upsertTest } from '@/app/admin/actions';
 
-export function TestSettingsForm({ test, moduleId }: { test?: Test; moduleId: string }) {
+export function TestSettingsForm({
+  test,
+  moduleId,
+  defaultLocale,
+}: {
+  test?: Test;
+  moduleId: string;
+  defaultLocale?: 'RU' | 'KK';
+}) {
   return (
     <form action={upsertTest} className="grid grid-cols-2 gap-4">
       {test && <input type="hidden" name="id" value={test.id} />}
@@ -12,11 +20,11 @@ export function TestSettingsForm({ test, moduleId }: { test?: Test; moduleId: st
 
       <Field label="Название" name="title" defaultValue={test?.title} required className="col-span-2" />
 
-      <SelectField label="Язык" name="locale" defaultValue={test?.locale ?? 'RU'} options={[
+      <SelectField label="Язык" name="locale" defaultValue={test?.locale ?? defaultLocale ?? 'RU'} options={[
         { value: 'RU', label: 'Русский' }, { value: 'KK', label: 'Қазақша' },
       ]} />
 
-      <SelectField label="Режим" name="mode" defaultValue={test?.mode ?? 'CLASSIC'} options={[
+      <SelectField label="Режим" name="mode" defaultValue={test?.mode ?? 'INSTANT_FEEDBACK'} options={[
         { value: 'CLASSIC', label: 'Классический' },
         { value: 'CLASSIC_WITH_BACK', label: 'Классический с возвратом' },
         { value: 'INSTANT_FEEDBACK', label: 'Мгновенная обратная связь' },
@@ -32,7 +40,7 @@ export function TestSettingsForm({ test, moduleId }: { test?: Test; moduleId: st
       <Check label="Перемешивать ответы" name="shuffleAnswers" defaultChecked={test?.shuffleAnswers} />
       <Check label="Требовать вход" name="requireAuth" defaultChecked={test?.requireAuth ?? true} />
       <Check label="Обязательный ответ" name="requireAnswer" defaultChecked={test?.requireAnswer} />
-      <Check label="Показывать счёт во время теста" name="showScoreDuring" defaultChecked={test?.showScoreDuring} />
+      <Check label="Показывать счёт во время теста" name="showScoreDuring" defaultChecked={test?.showScoreDuring ?? true} />
       <Check label="Показывать правильные ответы" name="showCorrectAnswers" defaultChecked={test?.showCorrectAnswers ?? true} />
       <Check label="Email уведомления" name="emailNotifications" defaultChecked={test?.emailNotifications} />
       <Check label="Опубликовано" name="isPublished" defaultChecked={test?.isPublished ?? true} />

@@ -65,14 +65,14 @@
 .prose-content em { @apply italic; }
 .prose-content a { @apply text-primary underline underline-offset-2; }
 .prose-content blockquote { @apply border-l-4 border-border pl-4 italic text-muted-foreground my-3; }
-.prose-content img { @apply rounded-lg max-w-full h-auto my-3; }
-.prose-content iframe { @apply w-full aspect-video rounded-lg my-3; }
+.prose-content img { @apply rounded-lg max-w-[50%] h-auto my-3; }
+.prose-content iframe { @apply w-1/2 aspect-video rounded-lg my-3; }
 .prose-content code { @apply bg-muted px-1.5 py-0.5 rounded text-sm; }
 .prose-content pre { @apply bg-muted p-3 rounded-lg overflow-x-auto my-3; }
 
 /* TipTap editor */
 .ProseMirror {
-  @apply min-h-[160px] p-3 outline-none;
+  @apply min-h-[280px] p-3 outline-none;
 }
 .ProseMirror:focus {
   outline: none;

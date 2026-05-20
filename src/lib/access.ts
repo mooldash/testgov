@@ -23,12 +23,30 @@ export async function assertProgramAccess(userId: string, programId: string): Pr
 }
 
 export async function hasTestAccess(userId: string, testId: string): Promise<boolean> {
+  // A test is accessible if the user has access to ANY program that contains this module
   const test = await prisma.test.findUnique({
     where: { id: testId },
-    select: { module: { select: { programId: true } } },
+    select: {
+      module: {
+        select: {
+          programs: { select: { programId: true } },
+        },
+      },
+    },
   });
   if (!test) return false;
-  return hasProgramAccess(userId, test.module.programId);
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (!user) return false;
+  if (user.role === 'ADMIN') return true;
+
+  const programIds = test.module.programs.map((pm) => pm.programId);
+  if (programIds.length === 0) return false;
+
+  const access = await prisma.userAccess.findFirst({
+    where: { userId, programId: { in: programIds }, expiresAt: { gt: new Date() } },
+  });
+  return Boolean(access);
 }
 
 export async function assertTestAccess(userId: string, testId: string): Promise<void> {

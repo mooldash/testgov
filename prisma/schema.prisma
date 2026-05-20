@@ -32,7 +32,6 @@ enum TestMode {
 enum AccessSource {
   PURCHASE
   MANUAL
-  TRIAL
 }
 
 enum OrderStatus {
@@ -47,6 +46,7 @@ model User {
   email        String   @unique
   passwordHash String
   name         String?
+  phone        String?
   role         Role     @default(USER)
   localePref   Locale   @default(RU)
   createdAt    DateTime @default(now())
@@ -85,7 +85,8 @@ model Program {
   order         Int      @default(0)
   isPublished   Boolean  @default(true)
 
-  modules Module[]
+  modules ProgramModule[]
+  tariffs Tariff[]
   access  UserAccess[]
   orders  Order[]
 
@@ -95,21 +96,55 @@ model Program {
   @@index([categoryId])
 }
 
-model Module {
-  id          String     @id @default(cuid())
-  programId   String
-  program     Program    @relation(fields: [programId], references: [id], onDelete: Cascade)
-  type        ModuleType @default(TEST_COLLECTION)
-  order       Int        @default(0)
-  isPublished Boolean    @default(true)
+model Tariff {
+  id           String   @id @default(cuid())
+  programId    String
+  program      Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  key          String   // 'econom' | 'optima' | 'vip' (custom keys allowed too)
+  nameRu       String
+  nameKk       String
+  durationDays Int      @default(7)
+  priceTenge   Int      @default(0)
+  featuresRu   String[]
+  featuresKk   String[]
+  recommended  Boolean  @default(false)
+  order        Int      @default(0)
+  isPublished  Boolean  @default(true)
 
-  contents ModuleContent[]
-  tests    Test[]
+  accesses UserAccess[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([programId])
+  @@unique([programId, key])
+  @@index([programId, order])
+}
+
+model Module {
+  id          String     @id @default(cuid())
+  type        ModuleType @default(TEST_COLLECTION)
+  isPublished Boolean    @default(true)
+
+  contents ModuleContent[]
+  tests    Test[]
+  programs ProgramModule[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProgramModule {
+  programId String
+  program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  moduleId  String
+  module    Module  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  order     Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@id([programId, moduleId])
+  @@index([moduleId])
+  @@index([programId, order])
 }
 
 model ModuleContent {
@@ -141,7 +176,7 @@ model Test {
   requireAnswer      Boolean  @default(false)
   showScoreDuring    Boolean  @default(false)
   showCorrectAnswers Boolean  @default(true)
-  mode               TestMode @default(CLASSIC)
+  mode               TestMode @default(INSTANT_FEEDBACK)
   emailNotifications Boolean  @default(false)
   passingScore       Int      @default(70)
   questionLimit      Int?
@@ -225,13 +260,16 @@ model AttemptAnswer {
 }
 
 model UserAccess {
-  id        String       @id @default(cuid())
-  userId    String
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  programId String
-  program   Program      @relation(fields: [programId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  source    AccessSource @default(MANUAL)
+  id              String       @id @default(cuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programId       String
+  program         Program      @relation(fields: [programId], references: [id], onDelete: Cascade)
+  tariffId        String?
+  tariff          Tariff?      @relation(fields: [tariffId], references: [id], onDelete: SetNull)
+  expiresAt       DateTime
+  source          AccessSource @default(MANUAL)
+  paidAmountTenge Int          @default(0)
 
   createdAt DateTime @default(now())
 
@@ -246,6 +284,8 @@ model Order {
   programId    String
   program      Program     @relation(fields: [programId], references: [id], onDelete: Cascade)
   amountTenge  Int
+  durationDays Int?
+  tariffKey    String?
   status       OrderStatus @default(PENDING)
   providerName String      @default("stub")
   providerRef  String?

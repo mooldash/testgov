@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,11 +37,34 @@ const EMPTY: Initial = {
   ],
 };
 
-export function QuestionBuilder({ testId, initial }: { testId: string; initial?: Initial }) {
+export interface QuestionBuilderHandle {
+  submit: () => void;
+}
+
+interface Props {
+  testId: string;
+  initial?: Initial;
+  onSaved?: (id: string) => void;
+  onPendingChange?: (pending: boolean) => void;
+  onSavedFlagChange?: (saved: boolean) => void;
+}
+
+export const QuestionBuilder = forwardRef<QuestionBuilderHandle, Props>(function QuestionBuilder(
+  { testId, initial, onSaved, onPendingChange, onSavedFlagChange },
+  ref
+) {
   const isEdit = Boolean(initial?.id);
   const [state, setState] = useState<Initial>(initial ?? EMPTY);
   const [pending, start] = useTransition();
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    onPendingChange?.(pending);
+  }, [pending, onPendingChange]);
+
+  useEffect(() => {
+    onSavedFlagChange?.(saved);
+  }, [saved, onSavedFlagChange]);
 
   function setAnswer(i: number, patch: Partial<AnswerDraft>) {
     setState((s) => ({ ...s, answers: s.answers.map((a, j) => (j === i ? { ...a, ...patch } : a)) }));
@@ -75,16 +98,23 @@ export function QuestionBuilder({ testId, initial }: { testId: string; initial?:
       youtubeId: extractYouTubeId(state.youtubeId) || null,
       order: state.order,
       answers: state.answers.map((a, i) => ({
-        id: a.id, textHtml: a.textHtml, isCorrect: a.isCorrect, order: i,
+        id: a.id,
+        textHtml: a.textHtml,
+        isCorrect: a.isCorrect,
+        order: i,
       })),
     };
     start(async () => {
-      await saveQuestion(payload);
+      const result = await saveQuestion(payload);
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
       if (!isEdit) setState(EMPTY);
+      onSaved?.(result.id);
     });
   }
+
+  useImperativeHandle(ref, () => ({ submit }));
+
+  const saveLabel = pending ? 'Сохранение…' : isEdit ? 'Сохранить' : 'Создать вопрос';
 
   return (
     <div className="space-y-4">
@@ -93,43 +123,68 @@ export function QuestionBuilder({ testId, initial }: { testId: string; initial?:
         <TipTapEditor value={state.textHtml} onChange={(html) => setState((s) => ({ ...s, textHtml: html }))} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label>YouTube URL или ID (опционально)</Label>
-          <Input value={state.youtubeId} onChange={(e) => setState((s) => ({ ...s, youtubeId: e.target.value }))} placeholder="https://youtu.be/… или dQw4w9WgXcQ" />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Порядок</Label>
-          <Input type="number" value={state.order} onChange={(e) => setState((s) => ({ ...s, order: Number(e.target.value) }))} />
-        </div>
+      <div className="space-y-1.5">
+        <Label>YouTube URL или ID (опционально)</Label>
+        <Input
+          value={state.youtubeId}
+          onChange={(e) => setState((s) => ({ ...s, youtubeId: e.target.value }))}
+          placeholder="https://youtu.be/… или dQw4w9WgXcQ"
+        />
       </div>
 
       <div className="space-y-2">
         <Label>Ответы (отметьте правильный)</Label>
         {state.answers.map((a, i) => (
-          <div key={i} className={cn('border rounded-md p-2 flex gap-2 items-start', a.isCorrect && 'border-success bg-success/5')}>
-            <input type="radio" name={`correct-${state.id || 'new'}`} checked={a.isCorrect} onChange={() => setSingleCorrect(i)} className="mt-3 h-4 w-4" />
+          <div
+            key={i}
+            className={cn(
+              'border rounded-md p-2 flex gap-2 items-start',
+              a.isCorrect && 'border-success bg-success/5'
+            )}
+          >
+            <input
+              type="radio"
+              name={`correct-${state.id || 'new'}`}
+              checked={a.isCorrect}
+              onChange={() => setSingleCorrect(i)}
+              className="mt-3 h-4 w-4"
+            />
             <div className="flex-1">
               <TipTapEditor value={a.textHtml} onChange={(html) => setAnswer(i, { textHtml: html })} />
             </div>
-            <Button type="button" size="sm" variant="ghost" onClick={() => removeAnswer(i)} disabled={state.answers.length <= 2}>×</Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => removeAnswer(i)}
+              disabled={state.answers.length <= 2}
+            >
+              ×
+            </Button>
           </div>
         ))}
-        <Button type="button" size="sm" variant="outline" onClick={addAnswer}>+ Ответ</Button>
+        <Button type="button" size="sm" variant="outline" onClick={addAnswer}>
+          + Ответ
+        </Button>
       </div>
 
       <div className="space-y-1.5">
         <Label>Объяснение (опционально, показывается после ответа)</Label>
-        <TipTapEditor value={state.explanationHtml} onChange={(html) => setState((s) => ({ ...s, explanationHtml: html }))} />
+        <TipTapEditor
+          value={state.explanationHtml}
+          onChange={(html) => setState((s) => ({ ...s, explanationHtml: html }))}
+        />
       </div>
 
-      <div className="flex items-center gap-3">
-        <Button onClick={submit} disabled={pending}>{pending ? 'Сохранение…' : isEdit ? 'Сохранить' : 'Создать вопрос'}</Button>
+      <div className="flex items-center gap-3 pt-2 border-t">
+        <Button onClick={submit} disabled={pending}>
+          {saveLabel}
+        </Button>
         {saved && <span className="text-sm text-success">✓ Сохранено</span>}
       </div>
     </div>
   );
-}
+});
 
 function extractYouTubeId(input: string): string | null {
   if (!input) return null;

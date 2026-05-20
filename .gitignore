@@ -8,3 +8,9 @@ uploads/*
 !uploads/.gitkeep
 *.log
 .DS_Store
+
+# Claude Code working files
+.claude/
+
+# Misc temp files in root
+/[0-9a-f]*.jpg

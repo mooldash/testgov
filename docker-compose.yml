@@ -29,16 +29,19 @@ services:
       DATABASE_URL: postgresql://testgov:testgov@postgres:5432/testgov?schema=public
       AUTH_SECRET: ${AUTH_SECRET:-dev-secret-change-me-in-production-please-32}
       AUTH_TRUST_HOST: "true"
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3005}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3005}
       STORAGE_DRIVER: local
       UPLOAD_DIR: ./uploads
       PUBLIC_UPLOAD_PATH: /uploads
       PAYMENT_PROVIDER: stub
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@testgov.kz}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-changeme}
+      # File watcher on Windows volume mounts only works with polling
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
     ports:
-      - "3000:3000"
+      - "3005:3000"
     volumes:
       - ./src:/app/src
       - ./prisma:/app/prisma

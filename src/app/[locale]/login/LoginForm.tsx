@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ForgotPasswordLink } from './ForgotPasswordLink';
 
 export function LoginForm({
   labels,
@@ -44,7 +45,10 @@ export function LoginForm({
         <Input id="email" name="email" type="email" required autoComplete="email" />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">{labels.password}</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password">{labels.password}</Label>
+          <ForgotPasswordLink locale={locale} />
+        </div>
         <Input id="password" name="password" type="password" required autoComplete="current-password" />
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}

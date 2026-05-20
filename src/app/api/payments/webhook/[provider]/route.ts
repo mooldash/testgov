@@ -23,15 +23,34 @@ export async function POST(req: Request, ctx: { params: Promise<{ provider: stri
     return NextResponse.json({ ok: true });
   }
 
-  // Grant access
+  // Grant access — prefer the duration stored on the order (tariff-aware),
+  // fall back to the program's default duration.
   const program = await prisma.program.findUnique({ where: { id: order.programId } });
   if (!program) return NextResponse.json({ error: 'Program missing' }, { status: 500 });
 
-  const expiresAt = new Date(Date.now() + program.durationDays * 24 * 60 * 60 * 1000);
+  const days = order.durationDays ?? program.durationDays;
+  const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+  // Resolve tariff (if order references one) so UserAccess keeps the link
+  let tariffId: string | null = null;
+  if (order.tariffKey) {
+    const tariff = await prisma.tariff.findUnique({
+      where: { programId_key: { programId: order.programId, key: order.tariffKey } },
+    });
+    if (tariff) tariffId = tariff.id;
+  }
+
   await prisma.$transaction([
     prisma.order.update({ where: { id: order.id }, data: { status: 'PAID' } }),
     prisma.userAccess.create({
-      data: { userId: order.userId, programId: order.programId, expiresAt, source: 'PURCHASE' },
+      data: {
+        userId: order.userId,
+        programId: order.programId,
+        tariffId,
+        expiresAt,
+        source: 'PURCHASE',
+        paidAmountTenge: order.amountTenge,
+      },
     }),
   ]);
 

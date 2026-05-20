@@ -1,20 +1,26 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound, redirect } from 'next/navigation';
+
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 import { isLocale } from '@/i18n/config';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
-import { hasTestAccess } from '@/lib/access';
-import { Button } from '@/components/ui/button';
+import { hasTestAccess, hasProgramAccess } from '@/lib/access';
 import { Card, CardContent } from '@/components/ui/card';
 import { StartTestButton } from './StartTestButton';
+import { ProgramShell } from '@/components/program/ProgramShell';
 
 export default async function TestStartPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; id: string }>;
+  searchParams: Promise<{ program?: string }>;
 }) {
   const { locale, id } = await params;
+  const { program: programIdParam } = await searchParams;
   if (!isLocale(locale)) notFound();
   setRequestLocale(locale);
   const t = await getTranslations();
@@ -22,7 +28,11 @@ export default async function TestStartPage({
   const test = await prisma.test.findUnique({
     where: { id },
     include: {
-      module: { include: { program: true } },
+      module: {
+        include: {
+          programs: { select: { programId: true } },
+        },
+      },
       _count: { select: { questions: true, attempts: true } },
     },
   });
@@ -32,6 +42,19 @@ export default async function TestStartPage({
   if (test.requireAuth && !session?.user) {
     redirect(`/${locale}/login`);
   }
+
+  // Pick the program context
+  const programIds = test.module.programs.map((pm) => pm.programId);
+  let programId = programIdParam && programIds.includes(programIdParam) ? programIdParam : null;
+  if (!programId && session?.user) {
+    for (const pid of programIds) {
+      if (await hasProgramAccess(session.user.id, pid)) {
+        programId = pid;
+        break;
+      }
+    }
+  }
+  if (!programId) programId = programIds[0] ?? null;
 
   let allowed = !test.requireAuth;
   let attemptsUsed = 0;
@@ -43,10 +66,10 @@ export default async function TestStartPage({
   }
   const attemptsLeft = test.maxAttempts == null ? null : Math.max(0, test.maxAttempts - attemptsUsed);
 
-  return (
-    <div className="container max-w-2xl py-12">
+  const content = (
+    <div className="p-6 md:p-10 max-w-2xl">
       <Link
-        href={`/${locale}/modules/${test.moduleId}`}
+        href={`/${locale}/modules/${test.moduleId}${programId ? `?program=${programId}` : ''}`}
         className="text-sm text-muted-foreground hover:text-foreground"
       >
         ← {t('test.back_to_module')}
@@ -95,4 +118,17 @@ export default async function TestStartPage({
       </div>
     </div>
   );
+
+  if (programId) {
+    return (
+      <ProgramShell
+        programId={programId}
+        locale={locale}
+        current={{ type: 'test', id: test.id }}
+      >
+        {content}
+      </ProgramShell>
+    );
+  }
+  return <div className="container">{content}</div>;
 }

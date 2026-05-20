@@ -1,89 +1,138 @@
 import Link from 'next/link';
+import { ChevronRight, BookOpen, Target } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { upsertModule, deleteModule } from '../actions';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { deleteModuleAction } from '../actions';
+import { ModuleDialog, ModuleEditButton } from './ModuleDialog';
+import { LocaleToggle } from './LocaleToggle';
 
-export default async function AdminModulesPage() {
-  const [modules, programs] = await Promise.all([
-    prisma.module.findMany({
-      orderBy: [{ programId: 'asc' }, { order: 'asc' }],
-      include: { program: true, _count: { select: { tests: true, contents: true } } },
-    }),
-    prisma.program.findMany({ orderBy: { order: 'asc' } }),
-  ]);
+const TYPE_LABEL_RU = {
+  LAW: 'Материал',
+  TEST_COLLECTION: 'Тест',
+} as const;
+
+export default async function AdminModulesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ lang?: string }>;
+}) {
+  const { lang } = await searchParams;
+  const locale: 'RU' | 'KK' = lang === 'KK' ? 'KK' : 'RU';
+
+  const modules = await prisma.module.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      contents: { where: { locale }, select: { title: true } },
+      tests: { where: { locale }, select: { title: true } },
+      programs: { include: { program: { select: { slug: true, nameRu: true, nameKk: true } } } },
+      _count: { select: { tests: true, contents: true, programs: true } },
+    },
+  });
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Модули</h1>
-
-      <Card>
-        <CardHeader><CardTitle className="text-base">Новый модуль</CardTitle></CardHeader>
-        <CardContent>
-          <form action={upsertModule} className="grid grid-cols-2 gap-3">
-            <Select label="Программа" name="programId" required options={programs.map(p => ({ value: p.id, label: p.nameRu }))} />
-            <Select label="Тип" name="type" required options={[{ value: 'LAW', label: 'Закон / материал' }, { value: 'TEST_COLLECTION', label: 'Сборник тестов' }]} />
-            <Text label="Порядок" name="order" type="number" defaultValue="0" />
-            <Check label="Опубликовано" name="isPublished" defaultChecked />
-            <div className="col-span-2"><Button type="submit">Создать</Button></div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <div className="space-y-3">
-        {modules.map((m) => (
-          <Card key={m.id}>
-            <CardContent className="pt-6 flex items-center justify-between">
-              <div>
-                <div className="font-medium">{m.program.nameRu} · #{m.order} · {m.type}</div>
-                <div className="text-xs text-muted-foreground">контент (RU/KK): {m._count.contents} · тестов: {m._count.tests}</div>
-              </div>
-              <div className="flex gap-2">
-                <Link href={`/admin/modules/${m.id}`}><Button size="sm" variant="outline">Открыть</Button></Link>
-                <DeleteForm id={m.id} />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <h1 className="text-2xl font-semibold">Модули</h1>
+        <div className="flex items-center gap-3">
+          <LocaleToggle current={locale} />
+          <ModuleDialog />
+        </div>
       </div>
-    </div>
-  );
-}
 
-function Text(props: { label: string; name: string; type?: string; required?: boolean; defaultValue?: string }) {
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={props.name}>{props.label}</Label>
-      <Input id={props.name} {...props} />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Название</TableHead>
+            <TableHead className="w-28">Тип</TableHead>
+            <TableHead className="w-44 whitespace-nowrap">В программах</TableHead>
+            <TableHead className="w-24 text-right">Тестов</TableHead>
+            <TableHead className="w-28 text-right">Материалов</TableHead>
+            <TableHead className="w-12 text-center">✓</TableHead>
+            <TableHead className="w-32 text-right">Действия</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {modules.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                Пока нет модулей.
+              </TableCell>
+            </TableRow>
+          )}
+          {modules.map((m) => {
+            const Icon = m.type === 'LAW' ? BookOpen : Target;
+            const displayTitle =
+              m.type === 'LAW'
+                ? m.contents[0]?.title ?? (locale === 'KK' ? 'Оқу материалы' : 'Учебный материал')
+                : m.tests[0]?.title ?? (locale === 'KK' ? 'Тесттер жинағы' : 'Сборник тестов');
+            return (
+              <TableRow key={m.id}>
+                <TableCell>
+                  <Link
+                    href={`/admin/modules/${m.id}`}
+                    className="font-medium hover:text-primary inline-flex items-center gap-1.5 group"
+                  >
+                    {displayTitle}
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant={m.type === 'LAW' ? 'secondary' : 'outline'}
+                    className="gap-1 font-normal"
+                  >
+                    <Icon className="h-3 w-3" />
+                    {TYPE_LABEL_RU[m.type]}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {m._count.programs}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">
+                  {m._count.tests}
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">
+                  {m._count.contents}
+                </TableCell>
+                <TableCell className="text-center">
+                  {m.isPublished ? (
+                    <span className="text-emerald-600">●</span>
+                  ) : (
+                    <span className="text-muted-foreground">○</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1">
+                    <ModuleEditButton module={m} />
+                    <form action={deleteModuleAction}>
+                      <input type="hidden" name="id" value={m.id} />
+                      <Button
+                        type="submit"
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        ✕
+                      </Button>
+                    </form>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
-  );
-}
-function Select(props: { label: string; name: string; required?: boolean; defaultValue?: string; options: { value: string; label: string }[] }) {
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={props.name}>{props.label}</Label>
-      <select id={props.name} name={props.name} required={props.required} defaultValue={props.defaultValue} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-        <option value="">— выберите —</option>
-        {props.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    </div>
-  );
-}
-function Check(props: { label: string; name: string; defaultChecked?: boolean }) {
-  return (
-    <label className="flex items-center gap-2 self-end pb-2">
-      <input type="checkbox" name={props.name} defaultChecked={props.defaultChecked} className="h-4 w-4 rounded border-input" />
-      <span className="text-sm">{props.label}</span>
-    </label>
-  );
-}
-function DeleteForm({ id }: { id: string }) {
-  async function go() { 'use server'; await deleteModule(id); }
-  return (
-    <form action={go}>
-      <Button type="submit" size="sm" variant="destructive">Удалить</Button>
-    </form>
   );
 }

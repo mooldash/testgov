@@ -7,6 +7,23 @@ import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Youtube from '@tiptap/extension-youtube';
 import { useEffect, useRef } from 'react';
+import {
+  Bold,
+  Italic,
+  Underline as UnderlineIcon,
+  Strikethrough,
+  Heading2,
+  Heading3,
+  List,
+  ListOrdered,
+  Quote,
+  Code,
+  Link2,
+  Image as ImageIcon,
+  Youtube as YoutubeIcon,
+  Undo2,
+  Redo2,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface TipTapEditorProps {
@@ -35,7 +52,6 @@ export function TipTapEditor({ value = '', onChange, className }: TipTapEditorPr
     onUpdate: ({ editor }) => onChange?.(editor.getHTML()),
   });
 
-  // Sync external value into editor when it changes (e.g. switching tabs)
   useEffect(() => {
     if (!editor) return;
     if (editor.getHTML() !== value) editor.commands.setContent(value || '<p></p>', false);
@@ -71,23 +87,64 @@ export function TipTapEditor({ value = '', onChange, className }: TipTapEditorPr
 
   return (
     <div className={cn('border rounded-md bg-background', className)}>
-      <div className="flex flex-wrap gap-1 border-b p-1">
-        <ToolBtn active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></ToolBtn>
-        <ToolBtn active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}><i>I</i></ToolBtn>
-        <ToolBtn active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()}><u>U</u></ToolBtn>
-        <ToolBtn active={editor.isActive('strike')} onClick={() => editor.chain().focus().toggleStrike().run()}><s>S</s></ToolBtn>
+      <div className="flex flex-wrap items-center gap-0.5 border-b p-1.5">
+        <ToolBtn
+          title="Отменить (Ctrl+Z)"
+          onClick={() => editor.chain().focus().undo().run()}
+          disabled={!editor.can().undo()}
+        >
+          <Undo2 className="h-4 w-4" />
+        </ToolBtn>
+        <ToolBtn
+          title="Повторить (Ctrl+Shift+Z)"
+          onClick={() => editor.chain().focus().redo().run()}
+          disabled={!editor.can().redo()}
+        >
+          <Redo2 className="h-4 w-4" />
+        </ToolBtn>
         <Sep />
-        <ToolBtn active={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</ToolBtn>
-        <ToolBtn active={editor.isActive('heading', { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>H3</ToolBtn>
+        <ToolBtn title="Bold (Ctrl+B)" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
+          <Bold className="h-4 w-4" />
+        </ToolBtn>
+        <ToolBtn title="Italic (Ctrl+I)" active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}>
+          <Italic className="h-4 w-4" />
+        </ToolBtn>
+        <ToolBtn title="Underline (Ctrl+U)" active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()}>
+          <UnderlineIcon className="h-4 w-4" />
+        </ToolBtn>
+        <ToolBtn title="Strikethrough" active={editor.isActive('strike')} onClick={() => editor.chain().focus().toggleStrike().run()}>
+          <Strikethrough className="h-4 w-4" />
+        </ToolBtn>
         <Sep />
-        <ToolBtn active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>•</ToolBtn>
-        <ToolBtn active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()}>1.</ToolBtn>
-        <ToolBtn active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}>&ldquo;</ToolBtn>
-        <ToolBtn active={editor.isActive('code')} onClick={() => editor.chain().focus().toggleCode().run()}>{'</>'}</ToolBtn>
+        <ToolBtn title="Заголовок H2" active={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+          <Heading2 className="h-4 w-4" />
+        </ToolBtn>
+        <ToolBtn title="Заголовок H3" active={editor.isActive('heading', { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
+          <Heading3 className="h-4 w-4" />
+        </ToolBtn>
         <Sep />
-        <ToolBtn onClick={addLink}>🔗</ToolBtn>
-        <ToolBtn onClick={() => fileRef.current?.click()}>🖼</ToolBtn>
-        <ToolBtn onClick={addYoutube}>▶</ToolBtn>
+        <ToolBtn title="Маркированный список" active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+          <List className="h-4 w-4" />
+        </ToolBtn>
+        <ToolBtn title="Нумерованный список" active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+          <ListOrdered className="h-4 w-4" />
+        </ToolBtn>
+        <ToolBtn title="Цитата" active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
+          <Quote className="h-4 w-4" />
+        </ToolBtn>
+        <ToolBtn title="Код" active={editor.isActive('code')} onClick={() => editor.chain().focus().toggleCode().run()}>
+          <Code className="h-4 w-4" />
+        </ToolBtn>
+        <Sep />
+        <ToolBtn title="Ссылка" active={editor.isActive('link')} onClick={addLink}>
+          <Link2 className="h-4 w-4" />
+        </ToolBtn>
+        <ToolBtn title="Изображение" onClick={() => fileRef.current?.click()}>
+          <ImageIcon className="h-4 w-4" />
+        </ToolBtn>
+        <ToolBtn title="YouTube" onClick={addYoutube}>
+          <YoutubeIcon className="h-4 w-4" />
+        </ToolBtn>
         <input
           ref={fileRef}
           type="file"
@@ -100,25 +157,43 @@ export function TipTapEditor({ value = '', onChange, className }: TipTapEditorPr
           }}
         />
       </div>
-      <EditorContent editor={editor} />
+      <div className="resize-y overflow-auto min-h-[280px] max-h-[800px]">
+        <EditorContent editor={editor} />
+      </div>
     </div>
   );
 }
 
-function ToolBtn({ children, onClick, active }: { children: React.ReactNode; onClick?: () => void; active?: boolean }) {
+function ToolBtn({
+  children,
+  onClick,
+  active,
+  title,
+  disabled,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  active?: boolean;
+  title?: string;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
+      title={title}
+      disabled={disabled}
       className={cn(
-        'h-8 min-w-8 px-2 text-sm rounded hover:bg-muted transition-colors',
-        active && 'bg-muted font-semibold'
+        'h-8 w-8 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors',
+        active && 'bg-muted text-foreground',
+        disabled && 'opacity-40 pointer-events-none'
       )}
     >
       {children}
     </button>
   );
 }
+
 function Sep() {
-  return <div className="w-px bg-border my-1 mx-1" />;
+  return <div className="w-px h-5 bg-border mx-0.5" />;
 }

@@ -6,14 +6,20 @@ import { TestSettingsForm } from './TestSettingsForm';
 
 export default async function TestSettingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const test = await prisma.test.findUnique({ where: { id }, include: { module: { include: { program: true } } } });
+  const test = await prisma.test.findUnique({
+    where: { id },
+    include: { module: { include: { contents: { where: { locale: 'RU' }, select: { title: true } } } } },
+  });
   if (!test) notFound();
 
+  const moduleLabel =
+    test.module.contents[0]?.title ?? test.title;
+
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-6 max-w-4xl">
       <div className="text-sm text-muted-foreground">
         <Link href={`/admin/modules/${test.moduleId}`} className="hover:text-foreground">
-          ← {test.module.program.nameRu} · #{test.module.order}
+          ← {moduleLabel}
         </Link>
       </div>
       <h1 className="text-2xl font-semibold">Настройки теста</h1>

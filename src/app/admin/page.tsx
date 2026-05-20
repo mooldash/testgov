@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { BackupCard } from './BackupCard';
 
 export default async function AdminDashboard() {
   const [users, categories, programs, modules, tests, attempts, activeAccess] = await Promise.all([
@@ -23,19 +24,26 @@ export default async function AdminDashboard() {
   ];
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold mb-6">Обзор</h1>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {stats.map((s) => (
-          <Card key={s.label}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-normal text-muted-foreground">{s.label}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-semibold tabular-nums">{s.value}</div>
-            </CardContent>
-          </Card>
-        ))}
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold mb-6">Обзор</h1>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {stats.map((s) => (
+            <Card key={s.label}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-normal text-muted-foreground">{s.label}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-semibold tabular-nums">{s.value}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Обслуживание</h2>
+        <BackupCard />
       </div>
     </div>
   );

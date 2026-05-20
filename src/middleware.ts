@@ -18,7 +18,12 @@ export default function middleware(req: NextRequest) {
     pathname.startsWith('/uploads') ||
     pathname.startsWith('/payments/stub') ||
     pathname.startsWith('/_next') ||
-    pathname === '/favicon.ico'
+    pathname === '/icon.svg' ||
+    pathname === '/apple-icon' ||
+    pathname === '/opengraph-image' ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml' ||
+    pathname === '/manifest.webmanifest'
   ) {
     return NextResponse.next();
   }

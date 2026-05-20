@@ -4,10 +4,12 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { isLocale } from '@/i18n/config';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { sanitizeHtml, } from '@/lib/sanitize';
+import { hasProgramAccess } from '@/lib/access';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn, formatDateTime } from '@/lib/utils';
+import { ProgramShell } from '@/components/program/ProgramShell';
 
 export default async function AttemptResultPage({
   params,
@@ -25,7 +27,15 @@ export default async function AttemptResultPage({
   const attempt = await prisma.attempt.findUnique({
     where: { id },
     include: {
-      test: true,
+      test: {
+        include: {
+          module: {
+            include: {
+              programs: { select: { programId: true } },
+            },
+          },
+        },
+      },
       answers: true,
     },
   });
@@ -42,8 +52,19 @@ export default async function AttemptResultPage({
 
   const showCorrect = attempt.test.showCorrectAnswers;
 
-  return (
-    <div className="container max-w-3xl py-12">
+  // Resolve program for ProgramShell (pick first program the user has access to)
+  const programIds = attempt.test.module.programs.map((pm) => pm.programId);
+  let programId: string | null = null;
+  for (const pid of programIds) {
+    if (await hasProgramAccess(session.user.id, pid)) {
+      programId = pid;
+      break;
+    }
+  }
+  if (!programId) programId = programIds[0] ?? null;
+
+  const content = (
+    <div className="p-6 md:p-10 max-w-3xl">
       <Link
         href={`/${locale}/dashboard`}
         className="text-sm text-muted-foreground hover:text-foreground"
@@ -55,21 +76,45 @@ export default async function AttemptResultPage({
         <CardContent className="pt-6 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold">{attempt.test.title}</h1>
-            <p className="text-sm text-muted-foreground mt-1">{formatDateTime(attempt.finishedAt, locale)}</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {formatDateTime(attempt.finishedAt!, locale)}
+            </p>
           </div>
           <div className="text-right">
             <div className="text-3xl font-bold tabular-nums">{attempt.score}%</div>
             {attempt.passed ? (
-              <Badge variant="success" className="mt-1">{t('test.result_passed')}</Badge>
+              <Badge variant="success" className="mt-1">
+                {t('test.result_passed')}
+              </Badge>
             ) : (
-              <Badge variant="destructive" className="mt-1">{t('test.result_failed')}</Badge>
+              <Badge variant="destructive" className="mt-1">
+                {t('test.result_failed')}
+              </Badge>
             )}
           </div>
         </CardContent>
       </Card>
 
+      <div className="mt-6 flex flex-wrap gap-2">
+        <Link href={`/${locale}/tests/${attempt.testId}${programId ? `?program=${programId}` : ''}`}>
+          <span className="inline-flex items-center rounded-md border border-input bg-background px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors">
+            {locale === 'kk' ? 'Қайта тапсыру' : 'Пройти ещё раз'}
+          </span>
+        </Link>
+        <Link
+          href={`/${locale}/modules/${attempt.test.moduleId}${programId ? `?program=${programId}` : ''}`}
+        >
+          <span className="inline-flex items-center rounded-md border border-input bg-background px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground transition-colors">
+            ← {t('test.back_to_module')}
+          </span>
+        </Link>
+      </div>
+
       {showCorrect && (
-        <div className="mt-6 space-y-4">
+        <div className="mt-8 space-y-4">
+          <h2 className="text-lg font-semibold">
+            {locale === 'kk' ? 'Жауаптарды талдау' : 'Разбор ответов'}
+          </h2>
           {ids.map((qid, idx) => {
             const q = byId.get(qid);
             if (!q) return null;
@@ -80,7 +125,10 @@ export default async function AttemptResultPage({
                   <div className="text-xs text-muted-foreground mb-2">
                     {t('test.question_n', { n: idx + 1, total: ids.length })}
                   </div>
-                  <div className="prose-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.textHtml) }} />
+                  <div
+                    className="prose-content"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.textHtml) }}
+                  />
                   <div className="mt-3 space-y-2">
                     {q.answers.map((a) => {
                       const picked = ua?.answerId === a.id;
@@ -95,7 +143,10 @@ export default async function AttemptResultPage({
                             !picked && !isCorrect && 'opacity-70'
                           )}
                         >
-                          <span className="prose-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(a.textHtml) }} />
+                          <span
+                            className="prose-content"
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(a.textHtml) }}
+                          />
                           {isCorrect && <span className="ml-2 text-success">✓</span>}
                           {picked && !isCorrect && <span className="ml-2 text-destructive">✗</span>}
                         </div>
@@ -103,7 +154,8 @@ export default async function AttemptResultPage({
                     })}
                   </div>
                   {q.explanationHtml && (
-                    <div className="mt-3 text-sm bg-muted/40 rounded-lg p-3 prose-content"
+                    <div
+                      className="mt-3 text-sm bg-muted/40 rounded-lg p-3 prose-content"
                       dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.explanationHtml) }}
                     />
                   )}
@@ -115,4 +167,17 @@ export default async function AttemptResultPage({
       )}
     </div>
   );
+
+  if (programId) {
+    return (
+      <ProgramShell
+        programId={programId}
+        locale={locale}
+        current={{ type: 'test', id: attempt.testId }}
+      >
+        {content}
+      </ProgramShell>
+    );
+  }
+  return <div className="container">{content}</div>;
 }

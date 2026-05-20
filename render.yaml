@@ -1,0 +1,68 @@
+# Render.com Blueprint for testgov.kz
+# One-click deploy: https://render.com/docs/blueprint-spec
+#
+# What this creates:
+#   1. PostgreSQL 16 database (managed)
+#   2. Web service running the Next.js production Dockerfile
+#   3. Persistent disk for ./uploads (so user-uploaded images survive deploys)
+
+databases:
+  - name: testgov-db
+    plan: basic-256mb        # adjust to your size: free / basic-256mb / basic-1gb / pro / ...
+    databaseName: testgov
+    user: testgov
+    postgresMajorVersion: 16
+
+services:
+  - type: web
+    name: testgov
+    runtime: docker
+    plan: starter            # adjust: free / starter / standard / pro
+    region: frankfurt        # closest to KZ; alternatives: oregon, ohio, singapore
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    autoDeploy: true
+    disk:
+      name: testgov-uploads
+      mountPath: /app/uploads
+      sizeGB: 1
+    envVars:
+      # Database URL is automatically injected from the database above
+      - key: DATABASE_URL
+        fromDatabase:
+          name: testgov-db
+          property: connectionString
+
+      # Generated once on first deploy, kept stable afterwards
+      - key: AUTH_SECRET
+        generateValue: true
+
+      # next-auth needs the public origin; render fills in RENDER_EXTERNAL_URL automatically
+      - key: AUTH_TRUST_HOST
+        value: "true"
+      - key: NEXTAUTH_URL
+        sync: false           # set manually after first deploy to https://<your>.onrender.com
+      - key: PUBLIC_BASE_URL
+        sync: false           # same as NEXTAUTH_URL
+
+      # File storage — local disk (uploads above)
+      - key: STORAGE_DRIVER
+        value: local
+      - key: UPLOAD_DIR
+        value: /app/uploads
+      - key: PUBLIC_UPLOAD_PATH
+        value: /uploads
+
+      # Payment provider stays as stub until Kaspi creds are wired
+      - key: PAYMENT_PROVIDER
+        value: stub
+
+      # Seeded admin (created on first deploy)
+      - key: SEED_ADMIN_EMAIL
+        sync: false           # set to your real email
+      - key: SEED_ADMIN_PASSWORD
+        sync: false           # set to a strong password (write it down)
+
+      - key: NODE_ENV
+        value: production

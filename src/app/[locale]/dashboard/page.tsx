@@ -1,12 +1,15 @@
-import Link from 'next/link';
+import type { Metadata } from 'next';
 import { redirect, notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { isLocale } from '@/i18n/config';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { formatDate, formatDateTime, pluckLocalized } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { DashboardTabs } from './DashboardTabs';
+
+export const metadata: Metadata = {
+  title: 'Личный кабинет',
+  robots: { index: false, follow: false },
+};
 
 export default async function DashboardPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -17,17 +20,39 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
   const session = await auth();
   if (!session?.user) redirect(`/${locale}/login`);
 
-  const [access, attempts] = await Promise.all([
+  const [user, access, attempts, orders] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, email: true },
+    }),
     prisma.userAccess.findMany({
       where: { userId: session.user.id, expiresAt: { gt: new Date() } },
-      include: { program: true },
+      include: {
+        program: {
+          select: {
+            slug: true,
+            nameRu: true,
+            nameKk: true,
+            descriptionRu: true,
+            descriptionKk: true,
+          },
+        },
+      },
       orderBy: { expiresAt: 'desc' },
     }),
     prisma.attempt.findMany({
       where: { userId: session.user.id, finishedAt: { not: null } },
-      include: { test: true },
+      include: { test: { select: { title: true } } },
       orderBy: { finishedAt: 'desc' },
-      take: 25,
+      take: 50,
+    }),
+    prisma.order.findMany({
+      where: { userId: session.user.id },
+      include: {
+        program: { select: { slug: true, nameRu: true, nameKk: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
     }),
   ]);
 
@@ -38,74 +63,30 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
         <div className="text-sm text-muted-foreground">{session.user.email}</div>
       </div>
 
-      <section className="mb-10">
-        <h2 className="text-lg font-semibold mb-3">{t('dashboard.active_access')}</h2>
-        {access.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('dashboard.no_access')}</p>
-        ) : (
-          <div className="grid sm:grid-cols-2 gap-3">
-            {access.map((a) => (
-              <Card key={a.id}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">
-                    <Link href={`/${locale}/programs/${a.program.slug}`} className="hover:text-primary">
-                      {pluckLocalized(a.program, 'name', locale)}
-                    </Link>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  {t('dashboard.expires_at', { date: formatDate(a.expiresAt, locale) })}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section>
-        <h2 className="text-lg font-semibold mb-3">{t('dashboard.history')}</h2>
-        {attempts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('dashboard.no_history')}</p>
-        ) : (
-          <div className="border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr className="text-left">
-                  <th className="p-3 font-medium">{t('dashboard.test_name')}</th>
-                  <th className="p-3 font-medium">{t('dashboard.date')}</th>
-                  <th className="p-3 font-medium">{t('dashboard.score')}</th>
-                  <th className="p-3 font-medium">{t('dashboard.result')}</th>
-                  <th className="p-3"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {attempts.map((a) => (
-                  <tr key={a.id} className="border-t">
-                    <td className="p-3">{a.test.title}</td>
-                    <td className="p-3 text-muted-foreground">{formatDateTime(a.finishedAt!, locale)}</td>
-                    <td className="p-3 font-medium tabular-nums">{a.score}%</td>
-                    <td className="p-3">
-                      {a.passed ? (
-                        <Badge variant="success">{t('test.result_passed')}</Badge>
-                      ) : (
-                        <Badge variant="destructive">{t('test.result_failed')}</Badge>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <Link
-                        href={`/${locale}/dashboard/attempts/${a.id}`}
-                        className="text-primary hover:underline"
-                      >
-                        {t('dashboard.view')} →
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <DashboardTabs
+        locale={locale}
+        user={{ name: user?.name ?? '', email: user?.email ?? session.user.email ?? '' }}
+        access={access}
+        attempts={attempts}
+        orders={orders}
+        labels={{
+          tabAccess: locale === 'kk' ? 'Қолжетімділік' : 'Доступы',
+          tabResults: locale === 'kk' ? 'Нәтижелер' : 'Результаты',
+          tabOrders: locale === 'kk' ? 'Тапсырыстар' : 'Заказы',
+          tabSettings: locale === 'kk' ? 'Баптаулар' : 'Настройки',
+          noAccess: t('dashboard.no_access'),
+          noHistory: t('dashboard.no_history'),
+          noOrders: locale === 'kk' ? 'Әзірге тапсырыстар жоқ' : 'Заказов пока нет',
+          expiresAt: locale === 'kk' ? 'Аяқталады' : 'Истекает',
+          testName: t('dashboard.test_name'),
+          date: t('dashboard.date'),
+          score: t('dashboard.score'),
+          result: t('dashboard.result'),
+          view: t('dashboard.view'),
+          resultPassed: t('test.result_passed'),
+          resultFailed: t('test.result_failed'),
+        }}
+      />
     </div>
   );
 }

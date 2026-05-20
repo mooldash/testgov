@@ -13,7 +13,8 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:reset": "prisma migrate reset --force",
     "test": "vitest run",
-    "all": "bash scripts/start-all.sh",
+    "all": "docker compose up -d",
+    "all:build": "docker compose up --build -d",
     "stop": "docker compose down --remove-orphans"
   },
   "prisma": {
