@@ -314,7 +314,7 @@ export default async function LandingPage({
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {[
-              { icon: MessageCircle, key: 'whatsapp', href: `https://wa.me/${(process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || '+7 700 000 00 00').replace(/\D/g, '')}`, accent: 'emerald' as const },
+              { icon: MessageCircle, key: 'whatsapp', href: `https://wa.me/${(process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || '+7 777 036 8696').replace(/\D/g, '')}`, accent: 'emerald' as const },
               { icon: Instagram, key: 'instagram', href: 'https://instagram.com/' },
               { icon: Send, key: 'telegram', href: 'https://t.me/' },
               { icon: Youtube, key: 'youtube', href: 'https://youtube.com/' },

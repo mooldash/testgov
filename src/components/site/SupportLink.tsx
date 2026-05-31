@@ -1,7 +1,7 @@
 import { MessageCircle } from 'lucide-react';
 import type { AppLocale } from '@/i18n/config';
 
-const SUPPORT_NUMBER = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || '+7 700 000 00 00';
+const SUPPORT_NUMBER = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || '+7 777 036 8696';
 
 function formatPhone(raw: string): string {
   const digits = raw.replace(/\D/g, '').replace(/^8/, '7');

@@ -5,7 +5,7 @@ import { Phone, Mail, MapPin, Clock, MessageCircle } from 'lucide-react';
 import { isLocale } from '@/i18n/config';
 import { Card, CardContent } from '@/components/ui/card';
 
-const SUPPORT_PHONE = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || '+7 700 000 00 00';
+const SUPPORT_PHONE = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || '+7 777 036 8696';
 const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'support@testgov.kz';
 const SUPPORT_ADDRESS_RU =
   process.env.NEXT_PUBLIC_OFFICE_ADDRESS_RU || 'г. Астана, пр. Кабанбай батыра, 53';
