@@ -11,6 +11,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
+// ISR: categories list rarely changes; admin mutations revalidatePath
+// the affected slugs in src/app/admin/actions.ts.
+export const revalidate = 1800;
+
 export async function generateMetadata({
   params,
 }: {

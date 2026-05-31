@@ -14,8 +14,8 @@ export default async function AdminUsersPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Пользователи ({users.length})</h1>
-      <div className="border rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="border rounded-lg overflow-x-auto">
+        <table className="w-full text-sm min-w-[720px]">
           <thead className="bg-muted/50">
             <tr className="text-left">
               <th className="p-3 font-medium">Email</th>

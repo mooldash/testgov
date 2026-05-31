@@ -6,6 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { createOrUpdateReview, deleteOwnReview } from './reviewActions';
 
@@ -41,6 +49,7 @@ export function ReviewsSection({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   function submit() {
     setError(null);
@@ -64,19 +73,22 @@ export function ReviewsSection({
     });
   }
 
-  function remove(id: string) {
-    if (!confirm(locale === 'kk' ? 'Пікіріңізді жоюды растайсыз ба?' : 'Удалить ваш отзыв?')) return;
+  function confirmRemove() {
+    if (!confirmDeleteId) return;
+    const id = confirmDeleteId;
     startTransition(async () => {
       const fd = new FormData();
       fd.set('id', id);
       const res = await deleteOwnReview(fd);
       if (!res.ok) {
         setError(res.error);
+        setConfirmDeleteId(null);
         return;
       }
       setRating(5);
       setText('');
       setEditing(canReview);
+      setConfirmDeleteId(null);
     });
   }
 
@@ -144,7 +156,7 @@ export function ReviewsSection({
                     <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
                       {t('edit')}
                     </Button>
-                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => remove(myReview.id)}>
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setConfirmDeleteId(myReview.id)}>
                       <Trash2 className="h-3.5 w-3.5 mr-1" /> {t('delete')}
                     </Button>
                   </div>
@@ -238,6 +250,28 @@ export function ReviewsSection({
           </Card>
         ))}
       </div>
+
+      <Dialog open={confirmDeleteId !== null} onOpenChange={(v) => !v && setConfirmDeleteId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{locale === 'kk' ? 'Пікірді жою' : 'Удалить отзыв'}</DialogTitle>
+            <DialogDescription>
+              {locale === 'kk'
+                ? 'Пікіріңіз қайтарылмастай жойылады. Жалғастыру керек пе?'
+                : 'Ваш отзыв будет удалён без возможности восстановления. Продолжить?'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" disabled={pending} onClick={() => setConfirmDeleteId(null)}>
+              {t('cancel')}
+            </Button>
+            <Button variant="destructive" size="sm" disabled={pending} onClick={confirmRemove}>
+              {pending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 mr-1.5" />}
+              {t('delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

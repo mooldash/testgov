@@ -15,6 +15,10 @@ import { JsonLd } from '@/components/seo/JsonLd';
 
 const baseUrl = process.env.PUBLIC_BASE_URL || 'http://localhost:3005';
 
+// ISR: category programs list rarely changes; admin mutations revalidate
+// the affected paths in src/app/admin/actions.ts.
+export const revalidate = 1800;
+
 export async function generateMetadata({
   params,
 }: {

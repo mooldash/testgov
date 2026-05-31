@@ -137,7 +137,8 @@ export default async function AdminAccessPage({
 
       <AccessFilters programs={programs} total={totalCount} filtered={accesses.length} />
 
-      <Table>
+      <div className="border rounded-lg overflow-x-auto">
+      <Table className="min-w-[960px]">
         <TableHeader>
           <TableRow>
             <TableHead className="w-10">#</TableHead>
@@ -232,6 +233,7 @@ export default async function AdminAccessPage({
           })}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }

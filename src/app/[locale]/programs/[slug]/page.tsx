@@ -114,17 +114,18 @@ export default async function ProgramPage({
         ...(session?.user ? [{ userId: session.user.id }] : []),
       ],
     },
-    include: { user: { select: { name: true, email: true, id: true } } },
+    include: { user: { select: { name: true, id: true } } },
     orderBy: { createdAt: 'desc' },
     take: 50,
   });
+  const anonName = locale === 'kk' ? 'Қолданушы' : 'Пользователь';
   const reviews = reviewsRaw.map((r) => ({
     id: r.id,
     rating: r.rating,
     text: r.text,
     isPublished: r.isPublished,
     createdAt: r.createdAt,
-    userName: r.user.name || r.user.email.split('@')[0],
+    userName: r.user.name?.trim() || anonName,
     userId: r.user.id,
   }));
   const canReview = Boolean(session?.user && access);

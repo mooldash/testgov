@@ -32,6 +32,13 @@ import { TestimonialsSlider } from '@/components/site/TestimonialsSlider';
 
 const baseUrl = process.env.PUBLIC_BASE_URL || 'http://localhost:3005';
 
+// ISR: rebuild the landing in the background every 30 min. Admin actions
+// that mutate landing data (categories/programs visibility) already call
+// revalidatePath in src/app/admin/actions.ts so the change appears
+// immediately for editors; this just protects anonymous traffic from
+// re-running heavy queries per request.
+export const revalidate = 1800;
+
 export default async function LandingPage({
   params,
 }: {

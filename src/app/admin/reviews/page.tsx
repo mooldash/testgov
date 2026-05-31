@@ -47,7 +47,8 @@ export default async function AdminReviewsPage({
         </div>
       </div>
 
-      <Table>
+      <div className="border rounded-lg overflow-x-auto">
+      <Table className="min-w-[960px]">
         <TableHeader>
           <TableRow>
             <TableHead className="w-24">Оценка</TableHead>
@@ -136,6 +137,7 @@ export default async function AdminReviewsPage({
           ))}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }
