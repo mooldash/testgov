@@ -863,6 +863,142 @@ async function main() {
     }
   }
 
+  // ── DEMO REVIEWS ──
+  // Mix of published (visible on programs/[slug]) and pending (visible in
+  // /admin/reviews moderation queue). Idempotent: skip if reviews already
+  // exist for the (user, program) pair (unique constraint).
+  const reviewSeeds: Array<{
+    email: string;
+    programSlug: string;
+    rating: number;
+    text: string;
+    isPublished: boolean;
+    /** days ago */
+    daysAgo: number;
+  }> = [
+    {
+      email: 'ainur.abilova@mail.kz',
+      programSlug: 'numerical-base',
+      rating: 5,
+      text: 'Отлично подготовилась за две недели. Числовые тесты разобраны до автоматизма, реальный экзамен прошёл легче чем тренировки. Особенно понравились пошаговые решения после каждого вопроса.',
+      isPublished: true,
+      daysAgo: 1,
+    },
+    {
+      email: 'aslan.bekov@mail.kz',
+      programSlug: 'personal-qualities-base',
+      rating: 4,
+      text: 'Хорошая платформа. Удобный интерфейс, всё работает быстро. Минус — хотелось бы больше вариантов вопросов в блоке про эмоциональный интеллект, на сейчас их явно мало.',
+      isPublished: true,
+      daysAgo: 3,
+    },
+    {
+      email: 'dana-kim',
+      programSlug: 'administrative-base',
+      rating: 5,
+      text: 'Прошла с первого раза! Подготовка системная: сначала теория, потом тесты, потом разбор ошибок. За три дня до экзамена прорешала тренировочный — получила 78%. На реальном вышло 81%.',
+      isPublished: true,
+      daysAgo: 2,
+    },
+    {
+      email: 'ainur.abilova@mail.kz',
+      programSlug: 'administrative-base',
+      rating: 5,
+      text: 'Купила сразу две программы — числовые и базовую АГС. Подача материала на 5+, видно что собирали юристы а не айтишники. Рекомендую коллегам.',
+      isPublished: true,
+      daysAgo: 8,
+    },
+    {
+      email: 'erlan.kasymov@mail.kz',
+      programSlug: 'judges-base',
+      rating: 4,
+      text: 'Готовился к экзамену на судей. Материала достаточно, особенно полезен раздел по уголовно-процессуальному кодексу. Хотелось бы больше кейсов с реальных экзаменов.',
+      isPublished: true,
+      daysAgo: 5,
+    },
+    {
+      email: 'timur.zhakupov@mail.kz',
+      programSlug: 'administrative-base',
+      rating: 5,
+      text: 'Платформа стоит своих денег. Прошёл базовую АГС за 10 дней, экзамен сдан с первого раза. Спасибо!',
+      isPublished: true,
+      daysAgo: 4,
+    },
+    {
+      email: 'saule.omarova@mail.kz',
+      programSlug: 'le-anticorruption',
+      rating: 3,
+      text: 'В целом нормально, но три дня — это слишком мало. За такое время можно только пробежаться по верхам. Лучше бы купила Оптима, теперь жалею.',
+      isPublished: true,
+      daysAgo: 1,
+    },
+    // ── pending moderation ──
+    {
+      email: 'ruslan.tursunov@mail.kz',
+      programSlug: 'judges-base',
+      rating: 5,
+      text: 'Очень доволен! Сначала был скепсис, но материал действительно глубокий. Особенно ценны разборы — там объясняется не просто «правильный ответ Б», а почему именно Б и почему А неверно. Это совсем другой уровень.',
+      isPublished: false,
+      daysAgo: 0,
+    },
+    {
+      email: 'aigul.muratova@mail.kz',
+      programSlug: 'numerical-base',
+      rating: 4,
+      text: 'Хорошо тренирует скорость. После 3-4 дней практики начинаешь видеть закономерности быстрее. Единственное — на мобильном иногда таблицы плохо помещаются, на десктопе всё ок.',
+      isPublished: false,
+      daysAgo: 0,
+    },
+    {
+      email: 'nurlan.sadykov@mail.kz',
+      programSlug: 'numerical-base',
+      rating: 2,
+      text: 'Не понравилось. Слишком много механики, мало объяснений. Если у тебя уже база есть — пойдёт. Если ты совсем с нуля — будешь страдать. Ушёл к другому сервису.',
+      isPublished: false,
+      daysAgo: 0,
+    },
+    {
+      email: 'aslan.bekov@mail.kz',
+      programSlug: 'administrative-base',
+      rating: 5,
+      text: 'Просто супер. Прошёл АГС, теперь готовлюсь к МВД на этой же платформе. Качество стабильно высокое.',
+      isPublished: false,
+      daysAgo: 1,
+    },
+  ];
+
+  const programsBySlug = new Map(
+    allProgramsWithTariffs.map((p) => [p.slug, p.id])
+  );
+  let createdReviews = 0;
+  for (const r of reviewSeeds) {
+    // Handle the 'dana-kim' shortcut (no @mail.kz suffix in my seed list)
+    const email = r.email.includes('@') ? r.email : `${r.email.replace('-', '.')}@mail.kz`;
+    const user = await prisma.user.findUnique({ where: { email } });
+    const programId = programsBySlug.get(r.programSlug);
+    if (!user || !programId) continue;
+    const existing = await prisma.review.findUnique({
+      where: { userId_programId: { userId: user.id, programId } },
+    });
+    if (existing) continue;
+    const createdAt = new Date(Date.now() - r.daysAgo * 24 * 60 * 60 * 1000);
+    await prisma.review.create({
+      data: {
+        userId: user.id,
+        programId,
+        rating: r.rating,
+        text: r.text,
+        isPublished: r.isPublished,
+        createdAt,
+        updatedAt: createdAt,
+      },
+    });
+    createdReviews++;
+  }
+  if (createdReviews > 0) {
+    console.log(`✅ Created ${createdReviews} demo reviews.`);
+  }
+
   console.log('✅ Seed complete.');
   console.log(`   Admin: ${adminEmail} / ${adminPassword}`);
   console.log(`   Demo:  ${demoUserEmail} / user1234`);
