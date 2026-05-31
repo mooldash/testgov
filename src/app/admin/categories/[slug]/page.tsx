@@ -93,7 +93,7 @@ export default async function CategoryProgramsPage({
       slug: p.slug,
       nameRu: p.nameRu,
       nameKk: p.nameKk,
-      categoryNameRu: p.category.nameRu,
+      categoryNameRu: p.category?.nameRu ?? '— без основной —',
       isDemo: p.isDemo,
     }));
 
@@ -163,12 +163,16 @@ export default async function CategoryProgramsPage({
                         {p.nameKk}
                         {' · '}
                         Основная категория:{' '}
-                        <Link
-                          href={`/admin/categories/${p.category.slug}`}
-                          className="hover:text-foreground underline-offset-2 hover:underline"
-                        >
-                          {p.category.nameRu}
-                        </Link>
+                        {p.category ? (
+                          <Link
+                            href={`/admin/categories/${p.category.slug}`}
+                            className="hover:text-foreground underline-offset-2 hover:underline"
+                          >
+                            {p.category.nameRu}
+                          </Link>
+                        ) : (
+                          <span className="italic">— без основной —</span>
+                        )}
                         {' · '}
                         <span className="font-mono">{p.slug}</span>
                       </div>

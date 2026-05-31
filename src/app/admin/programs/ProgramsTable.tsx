@@ -29,9 +29,9 @@ export type ProgramRow = {
   nameKk: string;
   descriptionRu: string | null;
   descriptionKk: string | null;
-  categoryId: string;
+  categoryId: string | null;
   categoryNameRu: string;
-  categorySlug: string;
+  categorySlug: string | null;
   priceMin: number | null;
   priceMax: number | null;
   tariffCount: number;
@@ -99,11 +99,12 @@ export function ProgramsTable({
       onDragEnd();
       return;
     }
-    // Only allow reorder within the same category
-    if (src.categoryId !== tgt.categoryId) {
+    // Only allow reorder within the same category, and skip if either side has no primary
+    if (!src.categoryId || src.categoryId !== tgt.categoryId) {
       onDragEnd();
       return;
     }
+    const srcCatId = src.categoryId;
     const next = [...rows];
     const fromIdx = next.findIndex((r) => r.id === dragId);
     const toIdx = next.findIndex((r) => r.id === targetId);
@@ -114,10 +115,10 @@ export function ProgramsTable({
 
     // Send the new order of programs WITHIN this category to the server
     const orderedIdsInCategory = next
-      .filter((r) => r.categoryId === src.categoryId)
+      .filter((r) => r.categoryId === srcCatId)
       .map((r) => r.id);
     startTransition(async () => {
-      await reorderPrograms(src.categoryId, orderedIdsInCategory);
+      await reorderPrograms(srcCatId, orderedIdsInCategory);
       router.refresh();
     });
   }
@@ -207,12 +208,16 @@ export function ProgramsTable({
               </TableCell>
               {showCategoryColumn && (
                 <TableCell>
-                  <Link
-                    href={`/admin/categories/${p.categorySlug}`}
-                    className="text-xs text-muted-foreground hover:text-primary"
-                  >
-                    {p.categoryNameRu}
-                  </Link>
+                  {p.categorySlug ? (
+                    <Link
+                      href={`/admin/categories/${p.categorySlug}`}
+                      className="text-xs text-muted-foreground hover:text-primary"
+                    >
+                      {p.categoryNameRu}
+                    </Link>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">{p.categoryNameRu}</span>
+                  )}
                 </TableCell>
               )}
               <TableCell className="font-mono text-xs text-muted-foreground">{p.slug}</TableCell>

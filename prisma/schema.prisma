@@ -98,12 +98,13 @@ model AppSetting {
 }
 
 model Program {
-  id            String   @id @default(cuid())
-  categoryId    String
-  // Restrict (not Cascade): a category with programs cannot be deleted —
-  // protects against accidental wipes (e.g. removing the primary category
-  // of a program that's attached as secondary to many others).
-  category      Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  id            String    @id @default(cuid())
+  // Optional: a program can exist without a "primary" category and only be
+  // shown via CategoryProgram attachments (used for the unified demo).
+  // Restrict (not Cascade) on the relation: a category with programs cannot
+  // be deleted — protects against accidental wipes.
+  categoryId    String?
+  category      Category? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   slug          String   @unique
   nameKk        String
   nameRu        String

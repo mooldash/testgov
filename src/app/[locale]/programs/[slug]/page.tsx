@@ -144,9 +144,11 @@ export default async function ProgramPage({
     return (
       <ProgramShell programId={program.id} locale={locale} current={{ type: 'overview' }}>
         <div className="p-6 md:p-10 max-w-4xl">
-          <div className="text-sm text-muted-foreground mb-2">
-            {pluckLocalized(program.category, 'name', locale)}
-          </div>
+          {program.category && (
+            <div className="text-sm text-muted-foreground mb-2">
+              {pluckLocalized(program.category, 'name', locale)}
+            </div>
+          )}
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
             {pluckLocalized(program, 'name', locale)}
           </h1>
@@ -327,15 +329,17 @@ export default async function ProgramPage({
         name: locale === 'kk' ? 'Басты бет' : 'Главная',
         item: `${baseUrl}/${locale}`,
       },
+      ...(program.category
+        ? [{
+            '@type': 'ListItem',
+            position: 2,
+            name: pluckLocalized(program.category, 'name', locale),
+            item: `${baseUrl}/${locale}/categories/${program.category.slug}`,
+          }]
+        : []),
       {
         '@type': 'ListItem',
-        position: 2,
-        name: pluckLocalized(program.category, 'name', locale),
-        item: `${baseUrl}/${locale}/categories/${program.category.slug}`,
-      },
-      {
-        '@type': 'ListItem',
-        position: 3,
+        position: program.category ? 3 : 2,
         name: programName,
         item: `${baseUrl}/${locale}/programs/${program.slug}`,
       },
@@ -345,12 +349,21 @@ export default async function ProgramPage({
   return (
     <div className="container py-12">
       <JsonLd data={[courseLd, breadcrumbsLd]} />
-      <Link
-        href={`/${locale}/categories/${program.category.slug}`}
-        className="text-sm text-muted-foreground hover:text-foreground"
-      >
-        ← {pluckLocalized(program.category, 'name', locale)}
-      </Link>
+      {program.category ? (
+        <Link
+          href={`/${locale}/categories/${program.category.slug}`}
+          className="text-sm text-muted-foreground hover:text-foreground"
+        >
+          ← {pluckLocalized(program.category, 'name', locale)}
+        </Link>
+      ) : (
+        <Link
+          href={`/${locale}/categories`}
+          className="text-sm text-muted-foreground hover:text-foreground"
+        >
+          ← {locale === 'kk' ? 'Барлық санаттар' : 'Все категории'}
+        </Link>
+      )}
 
       <div className="mt-2 mb-10 max-w-3xl">
         <h1 className="text-3xl md:text-4xl font-semibold">{pluckLocalized(program, 'name', locale)}</h1>

@@ -268,11 +268,13 @@ async function main() {
   ]);
 
   // ── UNIFIED DEMO PROGRAM (anonymous-friendly, attached to all categories) ──
+  // Demo has NO primary category — it's only visible via CategoryProgram
+  // attachments. Cannot be deleted by removing a category.
   const demoProgram = await prisma.program.upsert({
     where: { slug: 'demo' },
-    update: {},
+    update: { categoryId: null },
     create: {
-      categoryId: categories['administrative'],
+      categoryId: null,
       slug: 'demo',
       nameRu: 'Демо — попробуйте платформу',
       nameKk: 'Демо — платформаны тегін сынап көріңіз',
@@ -366,9 +368,8 @@ async function main() {
     }
   }
 
-  // Attach the single demo program to all other 7 categories as secondary entries
+  // Attach the demo to EVERY category (it has no primary, so all 8 are equal).
   for (const slug of Object.keys(categories)) {
-    if (slug === 'administrative') continue; // it's the primary category already
     await prisma.categoryProgram.upsert({
       where: {
         categoryId_programId: {

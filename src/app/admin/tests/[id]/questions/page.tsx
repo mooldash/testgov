@@ -99,12 +99,16 @@ export default async function QuestionsPage({
         {firstProg && (
           <>
             <ChevronRight className="h-3 w-3" />
-            <Link
-              href={`/admin/categories/${firstProg.category.slug}`}
-              className="hover:text-foreground"
-            >
-              {firstProg.category.nameRu}
-            </Link>
+            {firstProg.category ? (
+              <Link
+                href={`/admin/categories/${firstProg.category.slug}`}
+                className="hover:text-foreground"
+              >
+                {firstProg.category.nameRu}
+              </Link>
+            ) : (
+              <span className="italic">без основной</span>
+            )}
             <ChevronRight className="h-3 w-3" />
             <Link
               href={`/admin/programs/${firstProg.slug}`}

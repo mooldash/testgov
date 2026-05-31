@@ -87,7 +87,7 @@ export default async function AdminTestsPage() {
                       {t.module.programs[0].program.nameRu}
                     </Link>
                     <div className="text-[10px] text-muted-foreground">
-                      {t.module.programs[0].program.category.nameRu}
+                      {t.module.programs[0].program.category?.nameRu ?? '— без категории —'}
                     </div>
                   </>
                 ) : (

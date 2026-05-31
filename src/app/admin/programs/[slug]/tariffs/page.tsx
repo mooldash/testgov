@@ -26,12 +26,16 @@ export default async function ProgramTariffsPage({
           Категории
         </Link>
         <ChevronRight className="h-3 w-3" />
-        <Link
-          href={`/admin/categories/${program.category.slug}`}
-          className="hover:text-foreground"
-        >
-          {program.category.nameRu}
-        </Link>
+        {program.category ? (
+          <Link
+            href={`/admin/categories/${program.category.slug}`}
+            className="hover:text-foreground"
+          >
+            {program.category.nameRu}
+          </Link>
+        ) : (
+          <span className="italic">без основной</span>
+        )}
         <ChevronRight className="h-3 w-3" />
         <Link href={`/admin/programs/${program.slug}`} className="hover:text-foreground">
           {program.nameRu}

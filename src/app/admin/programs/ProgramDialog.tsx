@@ -18,7 +18,7 @@ import { upsertProgram } from '../actions';
 
 type Program = {
   id: string;
-  categoryId: string;
+  categoryId: string | null;
   slug: string;
   nameRu: string;
   nameKk: string;
@@ -72,11 +72,11 @@ export function ProgramDialog({
         >
           {program && <input type="hidden" name="id" value={program.id} />}
           <Select
-            label="Категория"
+            label="Основная категория"
             name="categoryId"
             defaultValue={program?.categoryId ?? defaultCategoryId ?? ''}
             options={categories.map((c) => ({ value: c.id, label: c.nameRu }))}
-            required
+            emptyLabel="— без основной (только привязки) —"
           />
           <Field
             label="Slug"
@@ -207,12 +207,14 @@ function Select({
   defaultValue,
   options,
   required,
+  emptyLabel,
 }: {
   label: string;
   name: string;
   defaultValue: string;
   options: { value: string; label: string }[];
   required?: boolean;
+  emptyLabel?: string;
 }) {
   return (
     <div className="space-y-1.5">
@@ -224,7 +226,7 @@ function Select({
         required={required}
         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
       >
-        <option value="">— выберите —</option>
+        <option value="">{emptyLabel ?? '— выберите —'}</option>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}

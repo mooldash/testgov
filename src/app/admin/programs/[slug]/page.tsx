@@ -89,9 +89,9 @@ export default async function ProgramModulesPage({
   return (
     <div className="flex gap-8">
       <ContextSidebar
-        title="Программы категории"
-        backHref={`/admin/categories/${program.category.slug}`}
-        backLabel={program.category.nameRu}
+        title={program.category ? 'Программы категории' : 'Программы'}
+        backHref={program.category ? `/admin/categories/${program.category.slug}` : '/admin/programs'}
+        backLabel={program.category?.nameRu ?? 'Все программы'}
         items={siblings.map((p) => ({
           href: `/admin/programs/${p.slug}`,
           label: p.nameRu,
@@ -104,9 +104,13 @@ export default async function ProgramModulesPage({
         <div className="text-sm text-muted-foreground flex items-center gap-1 flex-wrap">
           <Link href="/admin/categories" className="hover:text-foreground">Категории</Link>
           <ChevronRight className="h-3 w-3" />
-          <Link href={`/admin/categories/${program.category.slug}`} className="hover:text-foreground">
-            {program.category.nameRu}
-          </Link>
+          {program.category ? (
+            <Link href={`/admin/categories/${program.category.slug}`} className="hover:text-foreground">
+              {program.category.nameRu}
+            </Link>
+          ) : (
+            <span className="italic">без основной</span>
+          )}
           <ChevronRight className="h-3 w-3" />
           <span className="text-foreground">{program.nameRu}</span>
         </div>

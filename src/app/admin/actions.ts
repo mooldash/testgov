@@ -134,7 +134,9 @@ export async function detachProgramFromCategoryAction(formData: FormData) {
 // ---------- Programs ----------
 const ProgramSchema = z.object({
   id: z.string().optional(),
-  categoryId: z.string(),
+  // null/undefined means "no primary category" — the program will only
+  // be visible via CategoryProgram attachments. Used for the unified demo.
+  categoryId: z.string().nullable().optional(),
   slug: z.string().min(2).max(64).regex(/^[a-z0-9-]+$/),
   nameRu: z.string().min(1),
   nameKk: z.string().min(1),
@@ -150,9 +152,11 @@ const ProgramSchema = z.object({
 
 export async function upsertProgram(formData: FormData) {
   await requireAdmin();
+  const rawCategoryId = formData.get('categoryId');
   const data = ProgramSchema.parse({
     id: formData.get('id') || undefined,
-    categoryId: formData.get('categoryId'),
+    // Empty string from the select = "no primary category"
+    categoryId: rawCategoryId ? String(rawCategoryId) : null,
     slug: formData.get('slug'),
     nameRu: formData.get('nameRu'),
     nameKk: formData.get('nameKk'),
