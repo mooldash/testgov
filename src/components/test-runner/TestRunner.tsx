@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn, formatDuration } from '@/lib/utils';
@@ -64,11 +65,14 @@ export function TestRunner(props: Props) {
       void finish();
       return;
     }
-    const t = setTimeout(() => setTimeLeft((s) => (s == null ? null : s - 1)), 1000);
-    return () => clearTimeout(t);
+    const id = setTimeout(() => setTimeLeft((s) => (s == null ? null : s - 1)), 1000);
+    return () => clearTimeout(id);
   }, [timeLeft, finish]);
 
-  async function submitAnswer(questionId: string, answerId: string | null): Promise<PerQuestionFeedback | null> {
+  async function submitAnswer(
+    questionId: string,
+    answerId: string | null
+  ): Promise<PerQuestionFeedback | null> {
     const res = await fetch(`/api/attempts/${props.attemptId}/answer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -87,20 +91,30 @@ export function TestRunner(props: Props) {
   const allowBack = props.mode === 'CLASSIC_WITH_BACK';
 
   const total = props.questions.length;
+  const lowTime = timeLeft != null && timeLeft < 60;
 
   const TimerBar = (
-    <div className="flex items-center justify-between mb-6 sticky top-14 bg-background/90 backdrop-blur py-3 z-30 -mx-4 px-4 border-b">
+    <div className="flex items-center justify-between gap-3 mb-6">
       <div className="text-sm text-muted-foreground">
         {!allQuestionsMode && t('test.question_n', { n: index + 1, total })}
       </div>
       {timeLeft != null && (
-        <div className={cn('text-sm font-mono tabular-nums', timeLeft < 60 && 'text-destructive font-semibold')}>
-          ⏱ {t('test.time_left', { time: formatDuration(timeLeft) })}
+        <div
+          className={cn(
+            'flex items-center gap-1.5 px-3 h-9 rounded-md border tabular-nums font-mono text-sm',
+            lowTime
+              ? 'border-destructive/40 bg-destructive/10 text-destructive'
+              : 'border-border bg-muted/40'
+          )}
+        >
+          <Clock className="h-4 w-4" />
+          {formatDuration(timeLeft)}
         </div>
       )}
     </div>
   );
 
+  // ALL_QUESTIONS_PAGE: one big page, no per-question feedback
   if (allQuestionsMode) {
     return (
       <div>
@@ -114,7 +128,7 @@ export function TestRunner(props: Props) {
               question={q}
               selectedAnswerId={selected[q.id] ?? null}
               feedback={null}
-              disabled={false}
+              locked={false}
               onSelect={(aid) => setSelected((s) => ({ ...s, [q.id]: aid }))}
             />
           ))}
@@ -141,21 +155,64 @@ export function TestRunner(props: Props) {
     );
   }
 
-  // CLASSIC, CLASSIC_WITH_BACK, INSTANT_FEEDBACK — one-by-one
+  // INSTANT_FEEDBACK: click answer → immediate green/red feedback → user clicks "next"
+  if (instantMode) {
+    const q = props.questions[index];
+    if (!q) return null;
+    const fb = feedback[q.id] ?? null;
+    const isLast = index === total - 1;
+
+    async function selectAnswer(aid: string) {
+      if (fb) return; // already locked
+      setSelected((s) => ({ ...s, [q.id]: aid }));
+      const res = await submitAnswer(q.id, aid);
+      if (res) setFeedback((f) => ({ ...f, [q.id]: res }));
+    }
+
+    return (
+      <div>
+        {TimerBar}
+        <QuestionCard
+          n={index + 1}
+          total={total}
+          question={q}
+          selectedAnswerId={selected[q.id] ?? null}
+          feedback={fb}
+          locked={fb != null}
+          onSelect={selectAnswer}
+        />
+        <div className="mt-6 flex items-center justify-between">
+          <Button
+            variant="ghost"
+            disabled={index === 0}
+            onClick={() => setIndex((i) => Math.max(0, i - 1))}
+          >
+            {t('test.prev')}
+          </Button>
+          <Button
+            disabled={!fb || submitting}
+            onClick={() => {
+              if (isLast) void finish();
+              else setIndex((i) => i + 1);
+            }}
+          >
+            {isLast ? t('test.finish') : t('test.next')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // CLASSIC / CLASSIC_WITH_BACK: select → click submit/next, no feedback
   const q = props.questions[index];
-  const fb = feedback[q.id] ?? null;
+  if (!q) return null;
   const isLast = index === total - 1;
 
   async function handleNext() {
     setSubmitting(true);
     const aid = selected[q.id] ?? null;
     if (aid != null || !props.requireAnswer) {
-      const res = await submitAnswer(q.id, aid);
-      if (instantMode && res) {
-        setFeedback((f) => ({ ...f, [q.id]: res }));
-        setSubmitting(false);
-        return; // Show feedback first; user clicks again to advance
-      }
+      await submitAnswer(q.id, aid);
     }
     setSubmitting(false);
     if (isLast) {
@@ -165,12 +222,6 @@ export function TestRunner(props: Props) {
     }
   }
 
-  function advanceAfterFeedback() {
-    if (isLast) void finish();
-    else setIndex((i) => i + 1);
-  }
-
-  const showAdvance = instantMode && fb != null;
   const submitDisabled =
     submitting || (props.requireAnswer && selected[q.id] == null);
 
@@ -182,8 +233,8 @@ export function TestRunner(props: Props) {
         total={total}
         question={q}
         selectedAnswerId={selected[q.id] ?? null}
-        feedback={fb}
-        disabled={fb != null}
+        feedback={null}
+        locked={false}
         onSelect={(aid) => setSelected((s) => ({ ...s, [q.id]: aid }))}
       />
       <div className="mt-6 flex items-center justify-between">
@@ -194,13 +245,9 @@ export function TestRunner(props: Props) {
         >
           {t('test.prev')}
         </Button>
-        {showAdvance ? (
-          <Button onClick={advanceAfterFeedback}>{isLast ? t('test.finish') : t('test.next')}</Button>
-        ) : (
-          <Button onClick={handleNext} disabled={submitDisabled}>
-            {instantMode ? t('test.submit_answer') : isLast ? t('test.finish') : t('test.next')}
-          </Button>
-        )}
+        <Button onClick={handleNext} disabled={submitDisabled}>
+          {isLast ? t('test.finish') : t('test.next')}
+        </Button>
       </div>
     </div>
   );
@@ -212,7 +259,7 @@ function QuestionCard({
   question,
   selectedAnswerId,
   feedback,
-  disabled,
+  locked,
   onSelect,
 }: {
   n: number;
@@ -220,21 +267,27 @@ function QuestionCard({
   question: RunnerQuestion;
   selectedAnswerId: string | null;
   feedback: PerQuestionFeedback | null;
-  disabled: boolean;
+  /** Once an answer is committed in INSTANT_FEEDBACK mode, lock the buttons. */
+  locked: boolean;
   onSelect: (answerId: string) => void;
 }) {
   const t = useTranslations();
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <div className="text-xs text-muted-foreground mb-2">{t('test.question_n', { n, total })}</div>
-        <div className="prose-content" dangerouslySetInnerHTML={{ __html: question.textHtml }} />
+    <Card className="overflow-hidden">
+      <CardContent className="pt-6 pb-6 px-6 space-y-4">
+        <div className="text-xs text-muted-foreground">
+          {t('test.question_n', { n, total })}
+        </div>
+        <div
+          className="prose-content text-base"
+          dangerouslySetInnerHTML={{ __html: question.textHtml }}
+        />
         {question.mediaUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={question.mediaUrl} alt="" className="mt-3 rounded-lg max-w-full h-auto" />
+          <img src={question.mediaUrl} alt="" className="rounded-lg max-w-full h-auto" />
         )}
         {question.youtubeId && (
-          <div className="mt-3 aspect-video">
+          <div className="aspect-video">
             <iframe
               className="w-full h-full rounded-lg"
               src={`https://www.youtube.com/embed/${question.youtubeId}`}
@@ -243,40 +296,53 @@ function QuestionCard({
             />
           </div>
         )}
-        <div className="mt-4 space-y-2">
+        <div className="space-y-2 pt-1">
           {question.answers.map((a) => {
-            const selected = selectedAnswerId === a.id;
-            const isCorrectAnswer = feedback?.correctAnswerId === a.id;
-            const isWrongPick = feedback != null && selected && !feedback.isCorrect;
+            const isSelected = selectedAnswerId === a.id;
+            const showCorrect = feedback && feedback.correctAnswerId === a.id;
+            const showWrong = feedback && isSelected && !feedback.isCorrect;
             return (
               <button
                 key={a.id}
                 type="button"
-                onClick={() => !disabled && onSelect(a.id)}
-                disabled={disabled}
+                onClick={() => !locked && onSelect(a.id)}
+                disabled={locked}
                 className={cn(
-                  'w-full text-left rounded-lg border px-4 py-3 transition-colors',
-                  selected && 'border-primary bg-primary/5',
-                  isCorrectAnswer && 'border-success bg-success/10',
-                  isWrongPick && 'border-destructive bg-destructive/5',
-                  !disabled && !selected && 'hover:bg-muted/50'
+                  'w-full text-left px-4 py-3 rounded-lg border transition-colors',
+                  'flex items-center gap-3',
+                  showCorrect
+                    ? 'border-emerald-500/60 bg-emerald-500/10'
+                    : showWrong
+                      ? 'border-destructive/60 bg-destructive/10'
+                      : isSelected
+                        ? 'border-primary/60 bg-primary/5'
+                        : 'border-border hover:border-primary/40 hover:bg-muted/40',
+                  locked && !showCorrect && !showWrong && 'opacity-60'
                 )}
               >
-                <span className="prose-content" dangerouslySetInnerHTML={{ __html: a.textHtml }} />
+                <span
+                  className={cn(
+                    'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
+                    showCorrect
+                      ? 'border-emerald-500 bg-emerald-500 text-white'
+                      : showWrong
+                        ? 'border-destructive bg-destructive text-white'
+                        : isSelected
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-muted-foreground/30'
+                  )}
+                >
+                  {showCorrect && <CheckCircle2 className="h-3 w-3" />}
+                  {showWrong && <XCircle className="h-3 w-3" />}
+                </span>
+                <span
+                  className="prose-content text-sm flex-1"
+                  dangerouslySetInnerHTML={{ __html: a.textHtml }}
+                />
               </button>
             );
           })}
         </div>
-        {feedback && (
-          <div
-            className={cn(
-              'mt-4 text-sm font-medium',
-              feedback.isCorrect ? 'text-success' : 'text-destructive'
-            )}
-          >
-            {feedback.isCorrect ? '✓ ' + t('test.correct') : '✗ ' + t('test.incorrect')}
-          </div>
-        )}
       </CardContent>
     </Card>
   );

@@ -1,11 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Award, Clock, CheckCircle2, XCircle, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Award,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 export interface RunnerAnswer {
@@ -84,7 +91,7 @@ export function ExamRunner(props: Props) {
   }, [timeLeft, finish]);
 
   async function selectAnswer(questionId: string, answerId: string) {
-    if (feedback[questionId]) return; // already answered & locked
+    if (feedback[questionId]) return;
     setSelected((prev) => ({ ...prev, [questionId]: answerId }));
     try {
       const res = await fetch(`/api/exam/${props.attemptId}/answer`, {
@@ -96,25 +103,41 @@ export function ExamRunner(props: Props) {
         const data = (await res.json()) as Feedback;
         setFeedback((prev) => ({ ...prev, [questionId]: data }));
       }
-    } catch {
-      // network error — keep selection optimistic
-    }
+    } catch {}
   }
 
   const chapter = props.chapters[currentChapter];
 
-  // Per-chapter progress numbers
-  function chapterStats(idx: number) {
-    const ch = props.chapters[idx];
-    if (!ch) return { ans: 0, total: 0 };
-    const ans = ch.questions.filter((q) => selected[q.id] != null).length;
-    return { ans, total: ch.questions.length };
+  // Per-chapter stats
+  const chapterStats = useMemo(() => {
+    return props.chapters.map((ch) => {
+      const ans = ch.questions.filter((q) => selected[q.id] != null).length;
+      const ok = ch.questions.filter((q) => feedback[q.id]?.isCorrect).length;
+      return {
+        total: ch.questions.length,
+        answered: ans,
+        correct: ok,
+        done: ans === ch.questions.length && ch.questions.length > 0,
+      };
+    });
+  }, [props.chapters, selected, feedback]);
+
+  const currentStats = chapterStats[currentChapter];
+  const chapterComplete = currentStats?.done ?? false;
+  const lowTime = timeLeft != null && timeLeft < 300;
+  const isLastChapter = currentChapter === props.chapters.length - 1;
+
+  function goNext() {
+    if (isLastChapter) void finish();
+    else setCurrentChapter((i) => i + 1);
   }
 
-  const lowTime = timeLeft != null && timeLeft < 300; // <5 min
+  function goPrev() {
+    setCurrentChapter((i) => Math.max(0, i - 1));
+  }
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-8">
+    <div className="max-w-4xl mx-auto p-4 md:p-8 lg:p-10">
       {/* Top status bar */}
       <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
         <div className="flex items-center gap-3 min-w-0">
@@ -151,77 +174,33 @@ export function ExamRunner(props: Props) {
               {formatTime(timeLeft)}
             </div>
           )}
-          <Button
-            onClick={finish}
-            disabled={submitting}
-            variant={answered === total ? 'default' : 'outline'}
-          >
-            {submitting ? (
-              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-            ) : null}
+          <Button onClick={finish} disabled={submitting} variant="outline">
+            {submitting ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : null}
             {isKk ? 'Аяқтау' : 'Завершить'}
           </Button>
         </div>
       </div>
 
-      {/* Chapter tabs (scroll-x on small screens) */}
-      <div className="border-b mb-6 -mx-4 md:mx-0">
-        <div className="flex gap-1 overflow-x-auto px-4 md:px-0 pb-px">
-          {props.chapters.map((ch, idx) => {
-            const s = chapterStats(idx);
-            const active = idx === currentChapter;
-            const done = s.ans === s.total && s.total > 0;
-            return (
-              <button
-                key={ch.testId + idx}
-                type="button"
-                onClick={() => setCurrentChapter(idx)}
-                className={cn(
-                  'shrink-0 px-3 py-2.5 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors',
-                  active
-                    ? 'border-primary text-foreground font-medium'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-                )}
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  <span
-                    className={cn(
-                      'inline-flex h-5 min-w-5 px-1 items-center justify-center rounded text-[10px] font-semibold tabular-nums',
-                      active
-                        ? 'bg-primary text-primary-foreground'
-                        : done
-                          ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
-                          : 'bg-muted text-muted-foreground'
-                    )}
-                  >
-                    {idx + 1}
-                  </span>
-                  <span className="max-w-[220px] truncate">{ch.testTitle}</span>
-                  <span className="text-xs text-muted-foreground tabular-nums">
-                    {s.ans}/{s.total}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {/* Step indicator (replaces horizontal-scroll tabs) */}
+      <StepIndicator
+        stats={chapterStats}
+        current={currentChapter}
+        onPick={setCurrentChapter}
+      />
 
       {/* Chapter content */}
       {chapter && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3 mb-1">
-            <div>
-              <Badge variant="outline" className="text-[10px] mb-2">
-                {isKk ? 'Чаптер' : 'Чаптер'} {currentChapter + 1} / {props.chapters.length}
-              </Badge>
-              <h2 className="text-xl md:text-2xl font-semibold">{chapter.testTitle}</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                {isKk
-                  ? `${chapter.questions.length} сұрақ`
-                  : `${chapter.questions.length} вопросов`}
-              </p>
+        <div className="space-y-4 mt-6">
+          <div className="mb-2">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+              {isKk ? 'Чаптер' : 'Чаптер'} {currentChapter + 1} / {props.chapters.length}
             </div>
+            <h2 className="text-xl md:text-2xl font-semibold mt-1">{chapter.testTitle}</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {isKk
+                ? `${chapter.questions.length} сұрақ`
+                : `${chapter.questions.length} вопросов`}
+            </p>
           </div>
 
           {chapter.questions.map((q, qIdx) => {
@@ -255,9 +234,9 @@ export function ExamRunner(props: Props) {
                             'w-full text-left px-4 py-3 rounded-lg border transition-colors',
                             'flex items-center gap-3',
                             showCorrect
-                              ? 'border-emerald-500/60 bg-emerald-500/10 text-foreground'
+                              ? 'border-emerald-500/60 bg-emerald-500/10'
                               : showWrong
-                                ? 'border-destructive/60 bg-destructive/10 text-foreground'
+                                ? 'border-destructive/60 bg-destructive/10'
                                 : isSelected
                                   ? 'border-primary/60 bg-primary/5'
                                   : 'border-border hover:border-primary/40 hover:bg-muted/40',
@@ -292,33 +271,163 @@ export function ExamRunner(props: Props) {
             );
           })}
 
-          {/* Bottom chapter nav */}
+          {/* Inline chapter result — appears once all questions answered */}
+          {chapterComplete && currentStats && (
+            <ChapterResultCard
+              correct={currentStats.correct}
+              total={currentStats.total}
+              isLast={isLastChapter}
+              isKk={isKk}
+              onNext={goNext}
+              submitting={submitting}
+            />
+          )}
+
+          {/* Bottom nav (always visible) */}
           <div className="flex items-center justify-between pt-4 gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setCurrentChapter((i) => Math.max(0, i - 1))}
-              disabled={currentChapter === 0}
-            >
+            <Button variant="outline" onClick={goPrev} disabled={currentChapter === 0}>
               <ChevronLeft className="h-4 w-4 mr-1" />
               {isKk ? 'Алдыңғы' : 'Предыдущий'}
             </Button>
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-muted-foreground tabular-nums">
               {currentChapter + 1} / {props.chapters.length}
             </span>
-            {currentChapter < props.chapters.length - 1 ? (
-              <Button onClick={() => setCurrentChapter((i) => i + 1)}>
-                {isKk ? 'Келесі' : 'Следующий'}
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            ) : (
+            {isLastChapter ? (
               <Button onClick={finish} disabled={submitting}>
                 {submitting && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
                 {isKk ? 'Емтиханды аяқтау' : 'Завершить экзамен'}
+              </Button>
+            ) : (
+              <Button onClick={goNext}>
+                {isKk ? 'Келесі' : 'Следующий'}
+                <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             )}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Step indicator: dots with numbers and connecting lines.
+ * - Active chapter: large primary dot with number
+ * - Done chapter: emerald with check
+ * - Pending: muted bordered dot
+ * No horizontal scroll: dots compress, names move into a single header line.
+ */
+function StepIndicator({
+  stats,
+  current,
+  onPick,
+}: {
+  stats: Array<{ done: boolean; answered: number; total: number; correct: number }>;
+  current: number;
+  onPick: (i: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1 w-full">
+      {stats.map((s, i) => {
+        const active = i === current;
+        const done = s.done;
+        const isFirst = i === 0;
+        return (
+          <div key={i} className={cn('flex items-center', !isFirst && 'flex-1')}>
+            {!isFirst && (
+              <div
+                className={cn(
+                  'h-0.5 flex-1 transition-colors',
+                  i <= current || done ? 'bg-primary' : 'bg-border'
+                )}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => onPick(i)}
+              title={`Чаптер ${i + 1}${s.total > 0 ? ` (${s.answered}/${s.total})` : ''}`}
+              className={cn(
+                'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-all',
+                active
+                  ? 'bg-primary text-primary-foreground ring-4 ring-primary/20 scale-110'
+                  : done
+                    ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                    : 'bg-muted text-muted-foreground border border-border hover:border-primary/60 hover:text-foreground'
+              )}
+            >
+              {done && !active ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Inline result card shown when all questions of the current chapter have
+ * been answered. Encourages the user to move on and gives them their
+ * mini-score for this chapter.
+ */
+function ChapterResultCard({
+  correct,
+  total,
+  isLast,
+  isKk,
+  onNext,
+  submitting,
+}: {
+  correct: number;
+  total: number;
+  isLast: boolean;
+  isKk: boolean;
+  onNext: () => void;
+  submitting: boolean;
+}) {
+  const pct = total === 0 ? 0 : Math.round((correct / total) * 100);
+  const good = pct >= 60;
+  return (
+    <div
+      className={cn(
+        'rounded-xl border-2 p-5 mt-2',
+        good
+          ? 'border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/30'
+          : 'border-amber-500/40 bg-amber-50 dark:bg-amber-950/30'
+      )}
+    >
+      <div className="flex items-center gap-4 flex-wrap">
+        <div
+          className={cn(
+            'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
+            good
+              ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+              : 'bg-amber-500/20 text-amber-700 dark:text-amber-400'
+          )}
+        >
+          {good ? <CheckCircle2 className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold">
+            {isKk ? 'Чаптер аяқталды' : 'Чаптер пройден'}
+          </div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            {isKk
+              ? `Дұрыс жауаптар: ${correct} / ${total} (${pct}%)`
+              : `Правильных ответов: ${correct} / ${total} (${pct}%)`}
+          </div>
+        </div>
+        <Button onClick={onNext} disabled={submitting} className="shrink-0">
+          {submitting && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+          {isLast
+            ? isKk
+              ? 'Емтиханды аяқтау'
+              : 'Завершить экзамен'
+            : isKk
+              ? 'Келесі чаптер'
+              : 'Следующий чаптер'}
+          <ChevronRight className="h-4 w-4 ml-1" />
+        </Button>
+      </div>
     </div>
   );
 }

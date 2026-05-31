@@ -11,6 +11,7 @@ import {
   type ExamChapter,
 } from '@/lib/exam-engine';
 import { ExamRunner } from '@/components/exam-runner/ExamRunner';
+import { ProgramShell } from '@/components/program/ProgramShell';
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
@@ -67,12 +68,19 @@ export default async function ExamRunPage({
   const timeLeftSec = examTimeLeftSec(attempt.startedAt, attempt.module.examTimeLimitSec);
 
   return (
-    <ExamRunner
-      attemptId={attempt.id}
+    <ProgramShell
+      programId={attempt.programId}
       locale={locale}
-      chapters={safeChapters}
-      timeLeftSec={timeLeftSec}
-      resultPath={`/${locale}/exam/${attempt.id}/result`}
-    />
+      current={{ type: 'module', id: attempt.moduleId }}
+      guarded
+    >
+      <ExamRunner
+        attemptId={attempt.id}
+        locale={locale}
+        chapters={safeChapters}
+        timeLeftSec={timeLeftSec}
+        resultPath={`/${locale}/exam/${attempt.id}/result`}
+      />
+    </ProgramShell>
   );
 }

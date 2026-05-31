@@ -322,7 +322,7 @@ async function main() {
         isPublished: true,
       },
     });
-    for (let q = 1; q <= 5; q++) {
+    for (let q = 1; q <= 15; q++) {
       const qId = `demo-q-${locale.toLowerCase()}-${q}`;
       await prisma.question.upsert({
         where: { id: qId },
@@ -403,16 +403,16 @@ async function main() {
     where: { id: 'exam-mod-administrative-base' },
     update: {
       type: 'EXAM',
-      examQuestionsPerTest: 5,
-      examTimeLimitSec: 1800,
+      examQuestionsPerTest: 15,
+      examTimeLimitSec: 5400,
       examPassingScore: 60,
     },
     create: {
       id: 'exam-mod-administrative-base',
       type: 'EXAM',
       isPublished: true,
-      examQuestionsPerTest: 5,
-      examTimeLimitSec: 1800,
+      examQuestionsPerTest: 15,
+      examTimeLimitSec: 5400,
       examPassingScore: 60,
     },
   });
