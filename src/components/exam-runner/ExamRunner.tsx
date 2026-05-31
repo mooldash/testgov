@@ -224,11 +224,14 @@ export function ExamRunner(props: Props) {
                       const isSelected = userAnswer === a.id;
                       const showCorrect = fb && fb.correctAnswerId === a.id;
                       const showWrong = fb && isSelected && !fb.isCorrect;
+                      // Don't flash primary "selected" state between click and
+                      // feedback arrival — keep the row neutral until server
+                      // responds with green/red.
                       return (
                         <button
                           key={a.id}
                           type="button"
-                          disabled={Boolean(fb)}
+                          disabled={Boolean(fb) || (isSelected && !fb)}
                           onClick={() => selectAnswer(q.id, a.id)}
                           className={cn(
                             'w-full text-left px-4 py-3 rounded-lg border transition-colors',
@@ -237,9 +240,7 @@ export function ExamRunner(props: Props) {
                               ? 'border-emerald-500/60 bg-emerald-500/10'
                               : showWrong
                                 ? 'border-destructive/60 bg-destructive/10'
-                                : isSelected
-                                  ? 'border-primary/60 bg-primary/5'
-                                  : 'border-border hover:border-primary/40 hover:bg-muted/40',
+                                : 'border-border hover:border-primary/40 hover:bg-muted/40',
                             fb && !showCorrect && !showWrong && 'opacity-60'
                           )}
                         >
@@ -250,9 +251,7 @@ export function ExamRunner(props: Props) {
                                 ? 'border-emerald-500 bg-emerald-500 text-white'
                                 : showWrong
                                   ? 'border-destructive bg-destructive text-white'
-                                  : isSelected
-                                    ? 'border-primary bg-primary text-primary-foreground'
-                                    : 'border-muted-foreground/30'
+                                  : 'border-muted-foreground/30'
                             )}
                           >
                             {showCorrect && <CheckCircle2 className="h-3 w-3" />}

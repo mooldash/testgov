@@ -218,7 +218,7 @@ model Test {
   maxAttempts        Int?
   requireAuth        Boolean  @default(true)
   requireAnswer      Boolean  @default(false)
-  showScoreDuring    Boolean  @default(false)
+  showScoreDuring    Boolean  @default(true)
   showCorrectAnswers Boolean  @default(true)
   mode               TestMode @default(INSTANT_FEEDBACK)
   emailNotifications Boolean  @default(false)

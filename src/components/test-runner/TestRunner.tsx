@@ -301,6 +301,11 @@ function QuestionCard({
             const isSelected = selectedAnswerId === a.id;
             const showCorrect = feedback && feedback.correctAnswerId === a.id;
             const showWrong = feedback && isSelected && !feedback.isCorrect;
+            // While we're waiting for INSTANT_FEEDBACK response, don't show the
+            // primary "selected" state — it would briefly flash dark before
+            // turning green/red. Keep the row neutral until feedback arrives.
+            const pendingFeedback = locked && !feedback;
+            const showSelectedHint = isSelected && !pendingFeedback && !feedback;
             return (
               <button
                 key={a.id}
@@ -314,10 +319,10 @@ function QuestionCard({
                     ? 'border-emerald-500/60 bg-emerald-500/10'
                     : showWrong
                       ? 'border-destructive/60 bg-destructive/10'
-                      : isSelected
+                      : showSelectedHint
                         ? 'border-primary/60 bg-primary/5'
                         : 'border-border hover:border-primary/40 hover:bg-muted/40',
-                  locked && !showCorrect && !showWrong && 'opacity-60'
+                  feedback && !showCorrect && !showWrong && 'opacity-60'
                 )}
               >
                 <span
@@ -327,7 +332,7 @@ function QuestionCard({
                       ? 'border-emerald-500 bg-emerald-500 text-white'
                       : showWrong
                         ? 'border-destructive bg-destructive text-white'
-                        : isSelected
+                        : showSelectedHint
                           ? 'border-primary bg-primary text-primary-foreground'
                           : 'border-muted-foreground/30'
                   )}
