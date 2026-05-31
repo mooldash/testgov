@@ -341,7 +341,7 @@ function QuestionCard({
                   {showWrong && <XCircle className="h-3 w-3" />}
                 </span>
                 <span
-                  className="prose-content text-sm flex-1"
+                  className="prose-content text-sm flex-1 [&_p]:mb-0"
                   dangerouslySetInnerHTML={{ __html: a.textHtml }}
                 />
               </button>
