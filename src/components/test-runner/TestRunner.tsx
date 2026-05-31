@@ -179,6 +179,7 @@ export function TestRunner(props: Props) {
           selectedAnswerId={selected[q.id] ?? null}
           feedback={fb}
           locked={fb != null}
+          instantFeedback
           onSelect={selectAnswer}
         />
         <div className="mt-6 flex items-center justify-between">
@@ -260,6 +261,7 @@ function QuestionCard({
   selectedAnswerId,
   feedback,
   locked,
+  instantFeedback = false,
   onSelect,
 }: {
   n: number;
@@ -269,6 +271,11 @@ function QuestionCard({
   feedback: PerQuestionFeedback | null;
   /** Once an answer is committed in INSTANT_FEEDBACK mode, lock the buttons. */
   locked: boolean;
+  /** When true (INSTANT_FEEDBACK mode), skip the primary "selected" visual
+   *  state — go straight from neutral to green/red when feedback arrives.
+   *  Without this, the click would optimistically light up primary (dark)
+   *  for the ~300ms while we wait for the server response. */
+  instantFeedback?: boolean;
   onSelect: (answerId: string) => void;
 }) {
   const t = useTranslations();
@@ -301,11 +308,11 @@ function QuestionCard({
             const isSelected = selectedAnswerId === a.id;
             const showCorrect = feedback && feedback.correctAnswerId === a.id;
             const showWrong = feedback && isSelected && !feedback.isCorrect;
-            // While we're waiting for INSTANT_FEEDBACK response, don't show the
-            // primary "selected" state — it would briefly flash dark before
-            // turning green/red. Keep the row neutral until feedback arrives.
-            const pendingFeedback = locked && !feedback;
-            const showSelectedHint = isSelected && !pendingFeedback && !feedback;
+            // In INSTANT_FEEDBACK mode we never want the primary "selected"
+            // dark state — answers go neutral → green/red directly when the
+            // server response arrives. In CLASSIC mode the user must see
+            // what they've picked before pressing "next", so it stays.
+            const showSelectedHint = isSelected && !feedback && !instantFeedback;
             return (
               <button
                 key={a.id}
