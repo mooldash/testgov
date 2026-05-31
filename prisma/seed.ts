@@ -1,5 +1,7 @@
 import { PrismaClient, Locale, ModuleType, TestMode, AccessSource } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
 
 const prisma = new PrismaClient();
 
@@ -388,10 +390,16 @@ async function main() {
     });
   }
 
-  // ── App settings: default news authors (used by /news + admin editor sidebar) ──
+  // ── App settings: defaults that the admin UI relies on ──
+  // - news_author_*: shown in /news byline and admin editor sidebar
+  // - default_reset_password: filled into the WhatsApp message when admin
+  //   resets a user's password
+  // - category_direct_program: when category has 1 program, redirect to it
   for (const [key, value] of [
     ['news_author_ru', 'Редакция testgov.kz'],
     ['news_author_kk', 'testgov.kz редакциясы'],
+    ['default_reset_password', 'demo1234'],
+    ['category_direct_program', 'true'],
   ] as const) {
     await prisma.appSetting.upsert({
       where: { key },
@@ -997,6 +1005,51 @@ async function main() {
   }
   if (createdReviews > 0) {
     console.log(`✅ Created ${createdReviews} demo reviews.`);
+  }
+
+  // ── ARTICLES (news) ──
+  // Stored as a JSON file alongside seed.ts because article bodies are
+  // multi-paragraph HTML — keeping them inline would bloat this file.
+  // Idempotent: skip if slug already exists.
+  const articlesPath = path.join(__dirname, 'seed-articles.json');
+  if (fs.existsSync(articlesPath)) {
+    const articles = JSON.parse(fs.readFileSync(articlesPath, 'utf8')) as Array<{
+      slug: string;
+      titleRu: string;
+      titleKk: string;
+      excerptRu: string;
+      excerptKk: string;
+      bodyRu: string;
+      bodyKk: string;
+      coverUrl: string | null;
+      publishedDaysAgo: number;
+    }>;
+    let createdArticles = 0;
+    for (const a of articles) {
+      const existing = await prisma.article.findUnique({ where: { slug: a.slug } });
+      if (existing) continue;
+      const publishedAt = new Date(Date.now() - a.publishedDaysAgo * 24 * 60 * 60 * 1000);
+      await prisma.article.create({
+        data: {
+          slug: a.slug,
+          titleRu: a.titleRu,
+          titleKk: a.titleKk,
+          excerptRu: a.excerptRu,
+          excerptKk: a.excerptKk,
+          bodyRu: a.bodyRu,
+          bodyKk: a.bodyKk,
+          coverUrl: a.coverUrl,
+          isPublished: true,
+          publishedAt,
+          createdAt: publishedAt,
+          updatedAt: publishedAt,
+        },
+      });
+      createdArticles++;
+    }
+    if (createdArticles > 0) {
+      console.log(`✅ Created ${createdArticles} news articles.`);
+    }
   }
 
   console.log('✅ Seed complete.');
