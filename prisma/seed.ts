@@ -43,6 +43,7 @@ async function main() {
       nameKk: 'Әкімшілік мемлекеттік қызмет',
       descriptionRu: 'Тестирование для административных государственных служащих.',
       descriptionKk: 'Әкімшілік мемлекеттік қызметкерлерге арналған тестілеу.',
+      iconKey: 'briefcase',
       order: 1,
     },
     {
@@ -51,6 +52,7 @@ async function main() {
       nameKk: 'Құқық қорғау қызметі',
       descriptionRu: 'Тестирование для правоохранительных органов.',
       descriptionKk: 'Құқық қорғау органдарына арналған тестілеу.',
+      iconKey: 'shield',
       order: 2,
     },
     {
@@ -59,6 +61,7 @@ async function main() {
       nameKk: 'Сандық тестілер',
       descriptionRu: 'Тренировка числовой логики.',
       descriptionKk: 'Сандық логиканы жаттықтыру.',
+      iconKey: 'calculator',
       order: 3,
     },
     {
@@ -67,7 +70,44 @@ async function main() {
       nameKk: 'Жеке қасиеттер',
       descriptionRu: 'Оценка личных качеств кандидатов.',
       descriptionKk: 'Үміткерлердің жеке қасиеттерін бағалау.',
+      iconKey: 'brain',
       order: 4,
+    },
+    {
+      slug: 'tax',
+      nameRu: 'Налоговая служба',
+      nameKk: 'Салық қызметі',
+      descriptionRu: 'Подготовка для сотрудников налоговых органов РК.',
+      descriptionKk: 'ҚР салық органдары қызметкерлеріне арналған дайындық.',
+      iconKey: 'banknote',
+      order: 5,
+    },
+    {
+      slug: 'customs',
+      nameRu: 'Таможенная служба',
+      nameKk: 'Кеден қызметі',
+      descriptionRu: 'Тесты для таможенных органов РК.',
+      descriptionKk: 'ҚР кеден органдарына арналған тесттер.',
+      iconKey: 'globe',
+      order: 6,
+    },
+    {
+      slug: 'judges',
+      nameRu: 'Судьи и помощники',
+      nameKk: 'Судьялар мен көмекшілер',
+      descriptionRu: 'Программы для кандидатов в судьи и аппарата судов.',
+      descriptionKk: 'Судья кандидаттары мен сот аппаратына арналған бағдарламалар.',
+      iconKey: 'gavel',
+      order: 7,
+    },
+    {
+      slug: 'prosecutor',
+      nameRu: 'Прокуратура',
+      nameKk: 'Прокуратура',
+      descriptionRu: 'Подготовка к экзаменам в органы прокуратуры РК.',
+      descriptionKk: 'ҚР прокуратура органдарына дайындық.',
+      iconKey: 'scale',
+      order: 8,
     },
   ];
 
@@ -164,7 +204,198 @@ async function main() {
         order: 1,
       },
     }),
+    // ── Programs for the 4 new categories ──
+    prisma.program.upsert({
+      where: { slug: 'tax-base' },
+      update: {},
+      create: {
+        categoryId: categories['tax'],
+        slug: 'tax-base',
+        nameRu: 'Налоговая служба — базовая',
+        nameKk: 'Салық қызметі — негізгі',
+        descriptionRu: 'Налоговый кодекс, администрирование налогов, налоговые проверки.',
+        descriptionKk: 'Салық кодексі, салықтарды әкімшілендіру, салық тексерулері.',
+        priceTenge: 0,
+        durationDays: 30,
+        order: 1,
+      },
+    }),
+    prisma.program.upsert({
+      where: { slug: 'customs-base' },
+      update: {},
+      create: {
+        categoryId: categories['customs'],
+        slug: 'customs-base',
+        nameRu: 'Таможенная служба — базовая',
+        nameKk: 'Кеден қызметі — негізгі',
+        descriptionRu: 'Таможенное регулирование ЕАЭС, тарифное и нетарифное регулирование.',
+        descriptionKk: 'ЕАЭО кеден реттеу, тарифтік және тарифтік емес реттеу.',
+        priceTenge: 0,
+        durationDays: 30,
+        order: 1,
+      },
+    }),
+    prisma.program.upsert({
+      where: { slug: 'judges-base' },
+      update: {},
+      create: {
+        categoryId: categories['judges'],
+        slug: 'judges-base',
+        nameRu: 'Кандидаты в судьи',
+        nameKk: 'Судья кандидаттары',
+        descriptionRu: 'Конституция, ГПК, УПК, законы о судебной системе.',
+        descriptionKk: 'Конституция, АІЖК, ҚІЖК, сот жүйесі туралы заңдар.',
+        priceTenge: 0,
+        durationDays: 30,
+        order: 1,
+      },
+    }),
+    prisma.program.upsert({
+      where: { slug: 'prosecutor-base' },
+      update: {},
+      create: {
+        categoryId: categories['prosecutor'],
+        slug: 'prosecutor-base',
+        nameRu: 'Прокуратура — базовая',
+        nameKk: 'Прокуратура — негізгі',
+        descriptionRu: 'Закон «О прокуратуре», уголовное и административное право.',
+        descriptionKk: '«Прокуратура туралы» заң, қылмыстық және әкімшілік құқық.',
+        priceTenge: 0,
+        durationDays: 30,
+        order: 1,
+      },
+    }),
   ]);
+
+  // ── UNIFIED DEMO PROGRAM (anonymous-friendly, attached to all categories) ──
+  const demoProgram = await prisma.program.upsert({
+    where: { slug: 'demo' },
+    update: {},
+    create: {
+      categoryId: categories['administrative'],
+      slug: 'demo',
+      nameRu: 'Демо — попробуйте платформу',
+      nameKk: 'Демо — платформаны тегін сынап көріңіз',
+      descriptionRu:
+        'Пробная версия: 1 модуль и 1 тест из 5 вопросов. Доступно во всех категориях без регистрации.',
+      descriptionKk:
+        'Сынақ нұсқасы: 1 модуль және 5 сұрақтан тұратын 1 тест. Барлық санаттарда тіркеусіз қол жетімді.',
+      priceTenge: 0,
+      durationDays: 7,
+      order: 99,
+      isDemo: true,
+      isPublished: true,
+    },
+  });
+
+  // Demo module + RU/KK tests + 5 placeholder questions each (idempotent by id)
+  const demoModule = await prisma.module.upsert({
+    where: { id: 'demo-module' },
+    update: {},
+    create: { id: 'demo-module', type: ModuleType.TEST_COLLECTION, isPublished: true },
+  });
+
+  await prisma.programModule.upsert({
+    where: { programId_moduleId: { programId: demoProgram.id, moduleId: demoModule.id } },
+    update: {},
+    create: { programId: demoProgram.id, moduleId: demoModule.id, order: 1 },
+  });
+
+  for (const locale of [Locale.RU, Locale.KK] as const) {
+    const testId = `demo-test-${locale.toLowerCase()}`;
+    const test = await prisma.test.upsert({
+      where: { id: testId },
+      update: {},
+      create: {
+        id: testId,
+        moduleId: demoModule.id,
+        locale,
+        title:
+          locale === Locale.RU ? 'Демо-тест: попробуйте платформу' : 'Демо-тест: платформаны сынап көріңіз',
+        mode: TestMode.INSTANT_FEEDBACK,
+        passingScore: 60,
+        requireAuth: false,
+        showCorrectAnswers: true,
+        showScoreDuring: true,
+        isPublished: true,
+      },
+    });
+    for (let q = 1; q <= 5; q++) {
+      const qId = `demo-q-${locale.toLowerCase()}-${q}`;
+      await prisma.question.upsert({
+        where: { id: qId },
+        update: {},
+        create: {
+          id: qId,
+          testId: test.id,
+          order: q,
+          textHtml:
+            locale === Locale.RU
+              ? `<p>Вопрос ${q} (демо): замените текст через админку.</p>`
+              : `<p>${q}-сұрақ (демо): әкімші панелі арқылы ауыстырыңыз.</p>`,
+          answers: {
+            create: [
+              {
+                id: `${qId}-a`,
+                textHtml: locale === Locale.RU ? '<p>Вариант А (правильный)</p>' : '<p>А нұсқасы (дұрыс)</p>',
+                isCorrect: true,
+                order: 1,
+              },
+              {
+                id: `${qId}-b`,
+                textHtml: locale === Locale.RU ? '<p>Вариант Б</p>' : '<p>Б нұсқасы</p>',
+                isCorrect: false,
+                order: 2,
+              },
+              {
+                id: `${qId}-c`,
+                textHtml: locale === Locale.RU ? '<p>Вариант В</p>' : '<p>В нұсқасы</p>',
+                isCorrect: false,
+                order: 3,
+              },
+              {
+                id: `${qId}-d`,
+                textHtml: locale === Locale.RU ? '<p>Вариант Г</p>' : '<p>Г нұсқасы</p>',
+                isCorrect: false,
+                order: 4,
+              },
+            ],
+          },
+        },
+      });
+    }
+  }
+
+  // Attach the single demo program to all other 7 categories as secondary entries
+  for (const slug of Object.keys(categories)) {
+    if (slug === 'administrative') continue; // it's the primary category already
+    await prisma.categoryProgram.upsert({
+      where: {
+        categoryId_programId: {
+          categoryId: categories[slug],
+          programId: demoProgram.id,
+        },
+      },
+      update: {},
+      create: {
+        categoryId: categories[slug],
+        programId: demoProgram.id,
+        order: 99,
+      },
+    });
+  }
+
+  // ── App settings: default news authors (used by /news + admin editor sidebar) ──
+  for (const [key, value] of [
+    ['news_author_ru', 'Редакция testgov.kz'],
+    ['news_author_kk', 'testgov.kz редакциясы'],
+  ] as const) {
+    await prisma.appSetting.upsert({
+      where: { key },
+      update: {},
+      create: { key, value },
+    });
+  }
 
   // ── MODULES (independent of programs; attached via ProgramModule) ──
   // Skip if any module already exists (idempotent)
