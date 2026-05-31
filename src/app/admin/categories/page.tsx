@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
 import { resolveCategoryIcon } from '@/lib/category-icons';
-import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -11,8 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { deleteCategoryAction } from '../actions';
 import { CategoryDialog, CategoryEditButton } from './CategoryDialog';
+import { DeleteCategoryButton } from './DeleteCategoryButton';
 
 export default async function AdminCategoriesPage() {
   const cats = await prisma.category.findMany({
@@ -66,12 +65,11 @@ export default async function AdminCategoriesPage() {
               <TableCell className="text-right">
                 <div className="flex justify-end gap-1">
                   <CategoryEditButton category={c} />
-                  <form action={deleteCategoryAction}>
-                    <input type="hidden" name="id" value={c.id} />
-                    <Button type="submit" size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                      ✕
-                    </Button>
-                  </form>
+                  <DeleteCategoryButton
+                    categoryId={c.id}
+                    categoryName={c.nameRu}
+                    programCount={c._count.programs}
+                  />
                 </div>
               </TableCell>
             </TableRow>

@@ -51,8 +51,26 @@ export async function upsertCategory(formData: FormData) {
 
 export async function deleteCategory(id: string) {
   await requireAdmin();
+  // Pre-check: if any program has this as its primary category, refuse with
+  // a human-readable message. The DB also enforces this via Restrict, but
+  // we want a nicer error than the Prisma constraint exception.
+  const primaryCount = await prisma.program.count({ where: { categoryId: id } });
+  if (primaryCount > 0) {
+    const cat = await prisma.category.findUnique({
+      where: { id },
+      select: { nameRu: true },
+    });
+    throw new Error(
+      `В категории «${cat?.nameRu ?? id}» ${primaryCount} ${primaryCount === 1 ? 'программа' : 'программ(ы)'} ` +
+        `с основной привязкой к ней. Перенесите их в другую категорию или удалите программы — ` +
+        `только тогда категорию можно удалить.`
+    );
+  }
+  // Secondary attachments (CategoryProgram) cascade — they just disappear,
+  // programs themselves stay alive in their primary categories.
   await prisma.category.delete({ where: { id } });
   revalidatePath('/admin/categories');
+  revalidatePath('/', 'layout');
 }
 
 export async function deleteCategoryAction(formData: FormData) {
