@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { notFound } from 'next/navigation';
-import { Clock, FileQuestion, Target, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { notFound, redirect } from 'next/navigation';
+import { Clock, FileQuestion, Target, ChevronRight, CheckCircle2, PlayCircle, Star, Gift } from 'lucide-react';
 import { isLocale, dbLocale } from '@/i18n/config';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { formatTenge, pluckLocalized } from '@/lib/utils';
+import { getBoolSetting, SETTING_KEYS } from '@/lib/settings';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -56,35 +57,68 @@ export default async function CategoryPage({
   setRequestLocale(locale);
   const t = await getTranslations();
 
-  const category = await prisma.category.findUnique({
-    where: { slug },
-    include: {
-      programs: {
-        where: { isPublished: true },
-        orderBy: { order: 'asc' },
-        include: {
-          tariffs: { where: { isPublished: true }, select: { priceTenge: true } },
-          modules: {
-            include: {
-              module: {
-                include: {
-                  tests: {
-                    where: { locale: dbLocale(locale), isPublished: true },
-                    select: {
-                      timeLimitSec: true,
-                      passingScore: true,
-                      _count: { select: { questions: true } },
-                    },
-                  },
-                },
+  const programInclude = {
+    tariffs: { where: { isPublished: true }, select: { priceTenge: true } },
+    modules: {
+      include: {
+        module: {
+          include: {
+            tests: {
+              where: { locale: dbLocale(locale), isPublished: true },
+              select: {
+                timeLimitSec: true,
+                passingScore: true,
+                _count: { select: { questions: true } },
               },
             },
           },
         },
       },
     },
+  } as const;
+
+  const categoryRaw = await prisma.category.findUnique({
+    where: { slug },
+    include: {
+      programs: {
+        where: { isPublished: true },
+        // Demo programs always at the bottom of the list
+        orderBy: [{ isDemo: 'asc' }, { order: 'asc' }],
+        include: programInclude,
+      },
+      extraPrograms: {
+        where: { program: { isPublished: true } },
+        orderBy: { order: 'asc' },
+        include: { program: { include: programInclude } },
+      },
+    },
   });
-  if (!category) notFound();
+  if (!categoryRaw) notFound();
+
+  // Merge primary + secondary attachments. Dedupe defensively.
+  const seen = new Set<string>();
+  const mergedPrograms: typeof categoryRaw.programs = [];
+  for (const p of categoryRaw.programs) {
+    if (!seen.has(p.id)) {
+      seen.add(p.id);
+      mergedPrograms.push(p);
+    }
+  }
+  for (const cp of categoryRaw.extraPrograms) {
+    if (!seen.has(cp.program.id)) {
+      seen.add(cp.program.id);
+      mergedPrograms.push(cp.program);
+    }
+  }
+  // Demo always last across the merged list
+  mergedPrograms.sort((a, b) => Number(a.isDemo) - Number(b.isDemo));
+  const category = { ...categoryRaw, programs: mergedPrograms };
+
+  // Settings: if enabled and category has exactly one published program, redirect to it
+  const directProgram = await getBoolSetting(SETTING_KEYS.CATEGORY_DIRECT_PROGRAM);
+  if (directProgram && category.programs.length === 1) {
+    redirect(`/${locale}/programs/${category.programs[0].slug}`);
+  }
 
   const session = await auth();
   const ownedProgramIds = new Set<string>();
@@ -170,13 +204,31 @@ export default async function CategoryPage({
                 'border-2 transition-colors ' +
                 (owned
                   ? 'border-emerald-500/40 ring-1 ring-emerald-500/30 hover:ring-emerald-500'
-                  : 'border-transparent ring-1 ring-border hover:ring-primary hover:border-primary/30')
+                  : p.isHighlighted
+                    ? 'border-amber-500/50 ring-1 ring-amber-500/40 hover:ring-amber-500 bg-amber-50/30 dark:bg-amber-950/10'
+                    : p.isDemo
+                      ? 'border-emerald-500/30 ring-1 ring-emerald-500/20 hover:ring-emerald-500/60 bg-emerald-50/30 dark:bg-emerald-950/10'
+                      : 'border-transparent ring-1 ring-border hover:ring-primary hover:border-primary/30')
               }
             >
               <CardContent className="p-5">
-                {/* Title row with optional owned badge */}
-                <div className="flex items-start gap-3 mb-1">
-                  <h3 className="text-lg font-semibold flex-1 leading-tight">{name}</h3>
+                {/* Title row with optional badges */}
+                <div className="flex items-start gap-3 mb-1 flex-wrap">
+                  <h3 className="text-lg font-semibold flex-1 leading-tight inline-flex items-center gap-2">
+                    {name}
+                    {p.isHighlighted && (
+                      <Badge className="gap-1 font-medium bg-amber-500 text-white hover:bg-amber-500 shrink-0">
+                        <Star className="h-3 w-3" />
+                        {locale === 'kk' ? 'Ұсынылады' : 'Рекомендуем'}
+                      </Badge>
+                    )}
+                    {p.isDemo && (
+                      <Badge className="gap-1 font-medium bg-emerald-500 text-white hover:bg-emerald-500 shrink-0">
+                        <Gift className="h-3 w-3" />
+                        {locale === 'kk' ? 'Тегін демо' : 'Бесплатное демо'}
+                      </Badge>
+                    )}
+                  </h3>
                   {owned && (
                     <Badge className="gap-1 font-medium bg-emerald-500 text-white hover:bg-emerald-500 shrink-0">
                       <CheckCircle2 className="h-3 w-3" />
@@ -222,6 +274,21 @@ export default async function CategoryPage({
                             className="border-emerald-500 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
                           >
                             {locale === 'kk' ? 'Ашу' : 'Открыть'}
+                            <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                          </Button>
+                        </Link>
+                      </>
+                    ) : p.isDemo ? (
+                      <>
+                        <div className="text-sm text-emerald-700 dark:text-emerald-400 font-medium whitespace-nowrap">
+                          {locale === 'kk' ? 'Тіркеусіз' : 'Без регистрации'}
+                        </div>
+                        <Link href={`/${locale}/programs/${p.slug}`}>
+                          <Button
+                            size="sm"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                          >
+                            {locale === 'kk' ? 'Тегін бастау' : 'Начать бесплатно'}
                             <ChevronRight className="h-3.5 w-3.5 ml-1" />
                           </Button>
                         </Link>

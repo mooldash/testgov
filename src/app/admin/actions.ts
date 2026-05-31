@@ -2,9 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import bcrypt from 'bcryptjs';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { sanitizeHtml } from '@/lib/sanitize';
+import { getSetting, SETTING_KEYS } from '@/lib/settings';
 
 async function requireAdmin() {
   const session = await auth();
@@ -22,6 +24,7 @@ const CategorySchema = z.object({
   nameKk: z.string().min(1),
   descriptionRu: z.string().optional(),
   descriptionKk: z.string().optional(),
+  iconKey: z.string().optional(),
   order: z.coerce.number().int().default(0),
 });
 
@@ -34,6 +37,7 @@ export async function upsertCategory(formData: FormData) {
     nameKk: formData.get('nameKk'),
     descriptionRu: formData.get('descriptionRu') || undefined,
     descriptionKk: formData.get('descriptionKk') || undefined,
+    iconKey: formData.get('iconKey') || undefined,
     order: formData.get('order') || 0,
   });
   if (data.id) {
@@ -42,6 +46,7 @@ export async function upsertCategory(formData: FormData) {
     await prisma.category.create({ data: { ...data, id: undefined } });
   }
   revalidatePath('/admin/categories');
+  revalidatePath('/', 'layout');
 }
 
 export async function deleteCategory(id: string) {
@@ -54,6 +59,58 @@ export async function deleteCategoryAction(formData: FormData) {
   const id = String(formData.get('id') ?? '');
   if (!id) throw new Error('Missing id');
   await deleteCategory(id);
+}
+
+/**
+ * Attach an EXISTING program as a secondary entry in another category.
+ * Program's primary `categoryId` is not touched.
+ */
+export async function attachProgramToCategory(categoryId: string, programId: string) {
+  await requireAdmin();
+  const program = await prisma.program.findUnique({
+    where: { id: programId },
+    select: { categoryId: true },
+  });
+  if (!program) throw new Error('Программа не найдена');
+  if (program.categoryId === categoryId) {
+    throw new Error('Эта программа уже принадлежит данной категории как основной');
+  }
+  const max = await prisma.categoryProgram.aggregate({
+    _max: { order: true },
+    where: { categoryId },
+  });
+  await prisma.categoryProgram.upsert({
+    where: { categoryId_programId: { categoryId, programId } },
+    update: {},
+    create: { categoryId, programId, order: (max._max.order ?? 0) + 1 },
+  });
+  revalidatePath('/admin/categories');
+  revalidatePath('/admin/categories/[slug]', 'page');
+  revalidatePath('/', 'layout');
+}
+
+export async function attachProgramToCategoryAction(formData: FormData) {
+  const categoryId = String(formData.get('categoryId') ?? '');
+  const programId = String(formData.get('programId') ?? '');
+  if (!categoryId || !programId) throw new Error('Missing ids');
+  await attachProgramToCategory(categoryId, programId);
+}
+
+export async function detachProgramFromCategory(categoryId: string, programId: string) {
+  await requireAdmin();
+  await prisma.categoryProgram.delete({
+    where: { categoryId_programId: { categoryId, programId } },
+  });
+  revalidatePath('/admin/categories');
+  revalidatePath('/admin/categories/[slug]', 'page');
+  revalidatePath('/', 'layout');
+}
+
+export async function detachProgramFromCategoryAction(formData: FormData) {
+  const categoryId = String(formData.get('categoryId') ?? '');
+  const programId = String(formData.get('programId') ?? '');
+  if (!categoryId || !programId) throw new Error('Missing ids');
+  await detachProgramFromCategory(categoryId, programId);
 }
 
 // ---------- Programs ----------
@@ -69,6 +126,8 @@ const ProgramSchema = z.object({
   durationDays: z.coerce.number().int().min(1).default(30),
   order: z.coerce.number().int().default(0),
   isPublished: z.coerce.boolean().default(true),
+  isDemo: z.coerce.boolean().default(false),
+  isHighlighted: z.coerce.boolean().default(false),
 });
 
 export async function upsertProgram(formData: FormData) {
@@ -81,12 +140,12 @@ export async function upsertProgram(formData: FormData) {
     nameKk: formData.get('nameKk'),
     descriptionRu: formData.get('descriptionRu') || undefined,
     descriptionKk: formData.get('descriptionKk') || undefined,
-    // priceTenge/durationDays are no longer set via the admin form —
-    // tariffs cover both. Defaults from the schema apply.
     priceTenge: formData.get('priceTenge') || 0,
     durationDays: formData.get('durationDays') || 30,
     order: formData.get('order') || 0,
     isPublished: formData.get('isPublished') === 'on' || formData.get('isPublished') === 'true',
+    isDemo: formData.get('isDemo') === 'on' || formData.get('isDemo') === 'true',
+    isHighlighted: formData.get('isHighlighted') === 'on' || formData.get('isHighlighted') === 'true',
   });
   if (data.id) {
     await prisma.program.update({ where: { id: data.id }, data: { ...data, id: undefined } });
@@ -152,6 +211,60 @@ export async function deleteProgramAction(formData: FormData) {
   await deleteProgram(id);
 }
 
+// ---------- User password reset ----------
+function generatePassword(): string {
+  // 10 chars, no ambiguous (0/O/1/l/I), grouped 3-3-3 for readability
+  const alphabet = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for (let i = 0; i < 9; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return `${out.slice(0, 3)}-${out.slice(3, 6)}-${out.slice(6, 9)}`;
+}
+
+export async function resetUserPassword(
+  userId: string,
+  mode: 'default' | 'random'
+): Promise<{ newPassword: string; email: string; phone: string | null; name: string | null }> {
+  await requireAdmin();
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, phone: true, name: true },
+  });
+  if (!user) throw new Error('Пользователь не найден');
+
+  let newPassword: string;
+  if (mode === 'default') {
+    const fromSettings = await getSetting(SETTING_KEYS.DEFAULT_RESET_PASSWORD);
+    if (!fromSettings || fromSettings.length < 4) {
+      // Fall back to random if default not configured
+      newPassword = generatePassword();
+    } else {
+      newPassword = fromSettings;
+    }
+  } else {
+    newPassword = generatePassword();
+  }
+
+  const hash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash: hash } });
+
+  return { newPassword, email: user.email, phone: user.phone, name: user.name };
+}
+
+// ---------- App settings ----------
+export async function setAppSetting(formData: FormData) {
+  await requireAdmin();
+  const key = String(formData.get('key') ?? '');
+  const value = String(formData.get('value') ?? '');
+  if (!key) throw new Error('Missing key');
+  await prisma.appSetting.upsert({
+    where: { key },
+    create: { key, value },
+    update: { value },
+  });
+  revalidatePath('/admin/settings');
+  revalidatePath('/', 'layout');
+}
+
 // ---------- Modules ----------
 // Modules are independent entities. Attach them to programs via ProgramModule.
 const ModuleSchema = z.object({
@@ -207,6 +320,90 @@ export async function deleteModuleAction(formData: FormData) {
   const id = String(formData.get('id') ?? '');
   if (!id) throw new Error('Missing id');
   await deleteModule(id);
+}
+
+export async function duplicateModule(id: string) {
+  await requireAdmin();
+  const src = await prisma.module.findUnique({
+    where: { id },
+    include: {
+      contents: true,
+      tests: {
+        include: {
+          questions: { include: { answers: true } },
+        },
+      },
+    },
+  });
+  if (!src) throw new Error('Module not found');
+
+  const copySuffixRu = ' (копия)';
+  const copySuffixKk = ' (көшірме)';
+
+  return prisma.$transaction(async (tx) => {
+    const cloned = await tx.module.create({
+      data: { type: src.type, isPublished: false },
+    });
+    for (const c of src.contents) {
+      await tx.moduleContent.create({
+        data: {
+          moduleId: cloned.id,
+          locale: c.locale,
+          title: c.title + (c.locale === 'KK' ? copySuffixKk : copySuffixRu),
+          bodyHtml: c.bodyHtml,
+        },
+      });
+    }
+    for (const t of src.tests) {
+      const newTest = await tx.test.create({
+        data: {
+          moduleId: cloned.id,
+          locale: t.locale,
+          title: t.title + (t.locale === 'KK' ? copySuffixKk : copySuffixRu),
+          shuffleQuestions: t.shuffleQuestions,
+          shuffleAnswers: t.shuffleAnswers,
+          timeLimitSec: t.timeLimitSec,
+          maxAttempts: t.maxAttempts,
+          requireAuth: t.requireAuth,
+          requireAnswer: t.requireAnswer,
+          showScoreDuring: t.showScoreDuring,
+          showCorrectAnswers: t.showCorrectAnswers,
+          mode: t.mode,
+          emailNotifications: t.emailNotifications,
+          passingScore: t.passingScore,
+          questionLimit: t.questionLimit,
+          isPublished: t.isPublished,
+        },
+      });
+      for (const q of t.questions) {
+        await tx.question.create({
+          data: {
+            testId: newTest.id,
+            order: q.order,
+            textHtml: q.textHtml,
+            explanationHtml: q.explanationHtml,
+            mediaUrl: q.mediaUrl,
+            youtubeId: q.youtubeId,
+            answers: {
+              create: q.answers.map((a) => ({
+                textHtml: a.textHtml,
+                isCorrect: a.isCorrect,
+                order: a.order,
+              })),
+            },
+          },
+        });
+      }
+    }
+    revalidatePath('/admin/modules');
+    return cloned.id;
+  });
+}
+
+export async function duplicateModuleAction(formData: FormData) {
+  const id = String(formData.get('id') ?? '');
+  if (!id) throw new Error('Missing id');
+  await duplicateModule(id);
 }
 
 export async function reorderModules(programId: string, orderedModuleIds: string[]) {
@@ -672,4 +869,148 @@ export async function revokeAccessAction(formData: FormData) {
   const id = String(formData.get('id') ?? '');
   if (!id) throw new Error('Missing id');
   await revokeAccess(id);
+}
+
+// ---------- Reviews (admin moderation) ----------
+export async function setReviewPublished(reviewId: string, isPublished: boolean) {
+  await requireAdmin();
+  await prisma.review.update({ where: { id: reviewId }, data: { isPublished } });
+  revalidatePath('/admin/reviews');
+  revalidatePath('/[locale]/programs/[slug]', 'page');
+}
+
+export async function setReviewPublishedAction(formData: FormData) {
+  const id = String(formData.get('id') ?? '');
+  const isPublished = formData.get('isPublished') === 'true';
+  if (!id) throw new Error('Missing id');
+  await setReviewPublished(id, isPublished);
+}
+
+export async function deleteReview(reviewId: string) {
+  await requireAdmin();
+  await prisma.review.delete({ where: { id: reviewId } });
+  revalidatePath('/admin/reviews');
+  revalidatePath('/[locale]/programs/[slug]', 'page');
+}
+
+export async function deleteReviewAction(formData: FormData) {
+  const id = String(formData.get('id') ?? '');
+  if (!id) throw new Error('Missing id');
+  await deleteReview(id);
+}
+
+// ---------- News articles ----------
+const CYRILLIC_TO_LATIN: Record<string, string> = {
+  а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'yo', ж: 'zh', з: 'z',
+  и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r',
+  с: 's', т: 't', у: 'u', ф: 'f', х: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'shch',
+  ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya',
+  ә: 'a', ғ: 'g', қ: 'k', ң: 'n', ө: 'o', ұ: 'u', ү: 'u', һ: 'h', і: 'i',
+};
+
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .split('')
+    .map((ch) => CYRILLIC_TO_LATIN[ch] ?? ch)
+    .join('')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+}
+
+async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
+  if (!base) base = 'article';
+  let slug = base;
+  let i = 1;
+  while (true) {
+    const found = await prisma.article.findFirst({
+      where: { slug, ...(excludeId ? { NOT: { id: excludeId } } : {}) },
+      select: { id: true },
+    });
+    if (!found) return slug;
+    i += 1;
+    slug = `${base}-${i}`;
+  }
+}
+
+function autoExcerpt(bodyHtml: string, limit = 200): string {
+  const text = bodyHtml
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (text.length <= limit) return text;
+  const sliced = text.slice(0, limit);
+  const lastSpace = sliced.lastIndexOf(' ');
+  return (lastSpace > 0 ? sliced.slice(0, lastSpace) : sliced) + '…';
+}
+
+const ArticleSchema = z.object({
+  id: z.string().optional(),
+  titleRu: z.string().min(1),
+  titleKk: z.string().min(1),
+  bodyRu: z.string().default(''),
+  bodyKk: z.string().default(''),
+  coverUrl: z.string().optional(),
+  isPublished: z.coerce.boolean().default(false),
+});
+
+export async function upsertArticle(formData: FormData) {
+  await requireAdmin();
+  const isPublished =
+    formData.get('isPublished') === 'on' || formData.get('isPublished') === 'true';
+  const data = ArticleSchema.parse({
+    id: formData.get('id') || undefined,
+    titleRu: formData.get('titleRu'),
+    titleKk: formData.get('titleKk'),
+    bodyRu: formData.get('bodyRu') ?? '',
+    bodyKk: formData.get('bodyKk') ?? '',
+    coverUrl: formData.get('coverUrl') || undefined,
+    isPublished,
+  });
+  const bodyRu = sanitizeHtml(data.bodyRu);
+  const bodyKk = sanitizeHtml(data.bodyKk);
+  // Auto-generate slug from titleRu (fallback to titleKk)
+  const baseSlug = slugify(data.titleRu || data.titleKk);
+  const slug = await uniqueSlug(baseSlug, data.id);
+  // Auto-derive excerpt from body so the list page has a preview
+  const excerptRu = autoExcerpt(bodyRu);
+  const excerptKk = autoExcerpt(bodyKk);
+  const publishedAt = data.isPublished ? new Date() : null;
+  const payload = {
+    slug,
+    titleRu: data.titleRu,
+    titleKk: data.titleKk,
+    excerptRu,
+    excerptKk,
+    bodyRu,
+    bodyKk,
+    coverUrl: data.coverUrl,
+    isPublished: data.isPublished,
+    publishedAt,
+  };
+  if (data.id) {
+    await prisma.article.update({ where: { id: data.id }, data: payload });
+  } else {
+    await prisma.article.create({ data: payload });
+  }
+  revalidatePath('/admin/news');
+  revalidatePath('/ru/news');
+  revalidatePath('/kk/news');
+  revalidatePath('/[locale]/news/[slug]', 'page');
+}
+
+export async function deleteArticle(id: string) {
+  await requireAdmin();
+  await prisma.article.delete({ where: { id } });
+  revalidatePath('/admin/news');
+  revalidatePath('/ru/news');
+  revalidatePath('/kk/news');
+}
+
+export async function deleteArticleAction(formData: FormData) {
+  const id = String(formData.get('id') ?? '');
+  if (!id) throw new Error('Missing id');
+  await deleteArticle(id);
 }

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
+import { resolveCategoryIcon } from '@/lib/category-icons';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -44,18 +45,21 @@ export default async function AdminCategoriesPage() {
               </TableCell>
             </TableRow>
           )}
-          {cats.map((c) => (
+          {cats.map((c) => {
+            const Icon = resolveCategoryIcon(c.iconKey, c.slug);
+            return (
             <TableRow key={c.id}>
               <TableCell className="text-muted-foreground tabular-nums">{c.order}</TableCell>
               <TableCell>
                 <Link
                   href={`/admin/categories/${c.slug}`}
-                  className="font-medium hover:text-primary flex items-center gap-1.5 group"
+                  className="font-medium hover:text-primary flex items-center gap-2 group"
                 >
+                  <Icon className="h-4 w-4 text-muted-foreground" />
                   {c.nameRu}
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                 </Link>
-                <div className="text-xs text-muted-foreground">{c.nameKk}</div>
+                <div className="text-xs text-muted-foreground ml-6">{c.nameKk}</div>
               </TableCell>
               <TableCell className="font-mono text-xs text-muted-foreground">{c.slug}</TableCell>
               <TableCell className="text-right tabular-nums">{c._count.programs}</TableCell>
@@ -71,7 +75,8 @@ export default async function AdminCategoriesPage() {
                 </div>
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
     </div>

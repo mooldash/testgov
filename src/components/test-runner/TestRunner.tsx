@@ -24,6 +24,8 @@ interface Props {
   questions: RunnerQuestion[];
   timeLeftSec: number | null;
   requireAnswer: boolean;
+  /** Where to redirect after finish. Defaults to /dashboard/attempts/[id] for auth users. */
+  resultPath?: string;
 }
 
 interface PerQuestionFeedback {
@@ -48,12 +50,12 @@ export function TestRunner(props: Props) {
     setSubmitting(true);
     const res = await fetch(`/api/attempts/${props.attemptId}/finish`, { method: 'POST' });
     if (res.ok) {
-      router.push(`/${props.locale}/dashboard/attempts/${props.attemptId}`);
+      router.push(props.resultPath ?? `/${props.locale}/dashboard/attempts/${props.attemptId}`);
     } else {
       finishedRef.current = false;
       setSubmitting(false);
     }
-  }, [props.attemptId, props.locale, router]);
+  }, [props.attemptId, props.locale, props.resultPath, router]);
 
   // Countdown timer with auto-submit on expiry
   useEffect(() => {

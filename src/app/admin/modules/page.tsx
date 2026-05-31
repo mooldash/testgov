@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ChevronRight, BookOpen, Target } from 'lucide-react';
+import { ChevronRight, BookOpen, Target, Copy } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { deleteModuleAction } from '../actions';
+import { deleteModuleAction, duplicateModuleAction } from '../actions';
 import { ModuleDialog, ModuleEditButton } from './ModuleDialog';
 import { LocaleToggle } from './LocaleToggle';
 
@@ -57,7 +57,7 @@ export default async function AdminModulesPage({
             <TableHead className="w-24 text-right">Тестов</TableHead>
             <TableHead className="w-28 text-right">Материалов</TableHead>
             <TableHead className="w-12 text-center">✓</TableHead>
-            <TableHead className="w-32 text-right">Действия</TableHead>
+            <TableHead className="w-40 text-right">Действия</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -115,6 +115,17 @@ export default async function AdminModulesPage({
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
                     <ModuleEditButton module={m} />
+                    <form action={duplicateModuleAction}>
+                      <input type="hidden" name="id" value={m.id} />
+                      <Button
+                        type="submit"
+                        size="sm"
+                        variant="ghost"
+                        title="Дублировать модуль"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </form>
                     <form action={deleteModuleAction}>
                       <input type="hidden" name="id" value={m.id} />
                       <Button

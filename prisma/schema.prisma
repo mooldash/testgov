@@ -55,6 +55,7 @@ model User {
   attempts Attempt[]
   access   UserAccess[]
   orders   Order[]
+  reviews  Review[]
 }
 
 model Category {
@@ -64,10 +65,35 @@ model Category {
   nameRu        String
   descriptionKk String?
   descriptionRu String?
+  iconKey       String?
   order         Int     @default(0)
   programs      Program[]
+  extraPrograms CategoryProgram[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Secondary attachments: a program can be shown in additional categories
+// beyond its primary `categoryId`. The primary one stays untouched (drives
+// URL, breadcrumbs, SEO canonical). Used only to broaden discoverability.
+model CategoryProgram {
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  programId  String
+  program    Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  order      Int      @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@id([categoryId, programId])
+  @@index([programId])
+  @@index([categoryId, order])
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
   updatedAt DateTime @updatedAt
 }
 
@@ -84,11 +110,15 @@ model Program {
   durationDays  Int      @default(30)
   order         Int      @default(0)
   isPublished   Boolean  @default(true)
+  isDemo        Boolean  @default(false)
+  isHighlighted Boolean  @default(false)
 
-  modules ProgramModule[]
-  tariffs Tariff[]
-  access  UserAccess[]
-  orders  Order[]
+  modules         ProgramModule[]
+  tariffs         Tariff[]
+  access          UserAccess[]
+  orders          Order[]
+  reviews         Review[]
+  extraCategories CategoryProgram[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -225,8 +255,8 @@ model Answer {
 
 model Attempt {
   id            String    @id @default(cuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
   testId        String
   test          Test      @relation(fields: [testId], references: [id], onDelete: Cascade)
   startedAt     DateTime  @default(now())
@@ -295,4 +325,40 @@ model Order {
 
   @@index([userId])
   @@index([status])
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programId   String
+  program     Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  rating      Int      // 1..5
+  text        String
+  isPublished Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, programId])
+  @@index([programId, isPublished, createdAt])
+}
+
+model Article {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  titleRu     String
+  titleKk     String
+  excerptRu   String    @default("")
+  excerptKk   String    @default("")
+  bodyRu      String    @default("")
+  bodyKk      String    @default("")
+  coverUrl    String?
+  isPublished Boolean   @default(false)
+  publishedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isPublished, publishedAt])
 }

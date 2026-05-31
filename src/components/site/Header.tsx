@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { auth, signOut } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { SupportLink } from './SupportLink';
 import type { AppLocale } from '@/i18n/config';
 
 export async function Header({ locale }: { locale: AppLocale }) {
@@ -20,6 +21,12 @@ export async function Header({ locale }: { locale: AppLocale }) {
             <Link href={`/${locale}/categories`} className="hover:text-foreground transition-colors">
               {t('nav.categories')}
             </Link>
+            <Link href={`/${locale}/news`} className="hover:text-foreground transition-colors">
+              {t('nav.news')}
+            </Link>
+            <Link href={`/${locale}/contacts`} className="hover:text-foreground transition-colors">
+              {t('nav.contacts')}
+            </Link>
             {session?.user && (
               <Link href={`/${locale}/dashboard`} className="hover:text-foreground transition-colors">
                 {t('nav.dashboard')}
@@ -32,7 +39,8 @@ export async function Header({ locale }: { locale: AppLocale }) {
             )}
           </nav>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <SupportLink locale={locale} />
           <LanguageSwitcher currentLocale={locale} />
           {session?.user ? (
             <form

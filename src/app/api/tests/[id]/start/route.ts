@@ -7,24 +7,35 @@ import { selectQuestionsForAttempt } from '@/lib/test-engine';
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   const session = await auth();
+  const userId = session?.user?.id ?? null;
 
-  const test = await prisma.test.findUnique({ where: { id } });
+  const test = await prisma.test.findUnique({
+    where: { id },
+    include: {
+      module: {
+        include: { programs: { select: { program: { select: { isDemo: true } } } } },
+      },
+    },
+  });
   if (!test) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  if (test.requireAuth && !session?.user) {
+  const isDemoTest = test.module.programs.some((pm) => pm.program.isDemo);
+
+  // Auth gate: paid tests require login; demo tests are open to all
+  if (test.requireAuth && !isDemoTest && !userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  if (session?.user) {
-    const ok = await hasTestAccess(session.user.id, test.id);
-    if (!ok) return NextResponse.json({ error: 'No access' }, { status: 403 });
 
-    if (test.maxAttempts != null) {
-      const used = await prisma.attempt.count({
-        where: { userId: session.user.id, testId: test.id, finishedAt: { not: null } },
-      });
-      if (used >= test.maxAttempts) {
-        return NextResponse.json({ error: 'No attempts left' }, { status: 403 });
-      }
+  const ok = await hasTestAccess(userId, test.id);
+  if (!ok) return NextResponse.json({ error: 'No access' }, { status: 403 });
+
+  // Per-user attempt limits only apply to authenticated users
+  if (userId && test.maxAttempts != null) {
+    const used = await prisma.attempt.count({
+      where: { userId, testId: test.id, finishedAt: { not: null } },
+    });
+    if (used >= test.maxAttempts) {
+      return NextResponse.json({ error: 'No attempts left' }, { status: 403 });
     }
   }
 
@@ -33,7 +44,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
 
   const attempt = await prisma.attempt.create({
     data: {
-      userId: session!.user.id,
+      userId,
       testId: test.id,
       questionOrder: ids,
     },

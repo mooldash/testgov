@@ -6,11 +6,26 @@ import { scoreAttempt } from '@/lib/test-engine';
 export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const attempt = await prisma.attempt.findUnique({ where: { id }, include: { test: true } });
-  if (!attempt || attempt.userId !== session.user.id) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const attempt = await prisma.attempt.findUnique({
+    where: { id },
+    include: {
+      test: {
+        include: {
+          module: { include: { programs: { select: { program: { select: { isDemo: true } } } } } },
+        },
+      },
+    },
+  });
+  if (!attempt) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const isDemoAttempt = attempt.test.module.programs.some((pm) => pm.program.isDemo);
+  if (attempt.userId) {
+    if (attempt.userId !== session?.user?.id) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+  } else if (!isDemoAttempt) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   if (attempt.finishedAt) {
     return NextResponse.json({

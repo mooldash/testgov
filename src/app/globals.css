@@ -50,6 +50,21 @@
   }
 }
 
+/* Copy protection on client side (excludes inputs/textareas/contenteditable) */
+body.copy-guarded {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+body.copy-guarded input,
+body.copy-guarded textarea,
+body.copy-guarded [contenteditable=""],
+body.copy-guarded [contenteditable="true"] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+}
+
 /* Prose styles for rendered HTML content (laws, questions) */
 .prose-content {
   @apply text-foreground leading-relaxed;

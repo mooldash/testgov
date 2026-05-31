@@ -7,6 +7,7 @@ import { Header } from '@/components/site/Header';
 import { Footer } from '@/components/site/Footer';
 import { Providers } from '@/components/site/Providers';
 import { ExpiryBanner } from '@/components/site/ExpiryBanner';
+import { CopyGuard } from '@/components/site/CopyGuard';
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -57,6 +58,7 @@ export default async function LocaleLayout({
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <Providers>
+        <CopyGuard />
         <div className="flex flex-col min-h-screen">
           <Header locale={locale} />
           <ExpiryBanner locale={locale} />

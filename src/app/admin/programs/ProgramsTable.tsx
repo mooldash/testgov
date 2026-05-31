@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, GripVertical, Tags } from 'lucide-react';
+import { ChevronRight, GripVertical, Tags, PlayCircle, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -37,6 +37,8 @@ export type ProgramRow = {
   tariffCount: number;
   moduleCount: number;
   isPublished: boolean;
+  isDemo?: boolean;
+  isHighlighted?: boolean;
 };
 
 type CategoryOption = { id: string; nameRu: string };
@@ -189,7 +191,19 @@ export function ProgramsTable({
                   {p.nameRu}
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                 </Link>
-                <div className="text-xs text-muted-foreground">{p.nameKk}</div>
+                <div className="text-xs text-muted-foreground inline-flex items-center gap-1.5">
+                  {p.nameKk}
+                  {p.isDemo && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                      <PlayCircle className="h-2.5 w-2.5" /> ДЕМО
+                    </span>
+                  )}
+                  {p.isHighlighted && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                      <Star className="h-2.5 w-2.5" /> РЕКОМЕНДУЕМ
+                    </span>
+                  )}
+                </div>
               </TableCell>
               {showCategoryColumn && (
                 <TableCell>
@@ -237,6 +251,8 @@ export function ProgramsTable({
                       nameKk: p.nameKk,
                       descriptionRu: p.descriptionRu,
                       descriptionKk: p.descriptionKk,
+                      isDemo: p.isDemo,
+                      isHighlighted: p.isHighlighted,
                     }}
                     categories={categories}
                   />

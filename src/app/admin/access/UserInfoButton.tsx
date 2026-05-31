@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import { getUserInfo, type UserInfo } from '@/app/admin/actions';
 import { formatDateTime, formatTenge } from '@/lib/utils';
+import { ResetPasswordButton } from './ResetPasswordButton';
 
 export function UserInfoButton({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false);
@@ -138,7 +139,8 @@ export function UserInfoButton({ userId }: { userId: string }) {
             </div>
           )}
 
-          <DialogFooter className="mt-2">
+          <DialogFooter className="mt-2 gap-2 sm:gap-2 flex-wrap">
+            {data && <ResetPasswordButton userId={userId} variant="inline" />}
             <DialogClose asChild>
               <Button type="button" variant="outline">
                 Закрыть

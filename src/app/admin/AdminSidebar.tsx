@@ -11,6 +11,9 @@ import {
   Users,
   KeyRound,
   CreditCard,
+  Settings,
+  Star,
+  Newspaper,
   PanelLeftClose,
   PanelLeftOpen,
   type LucideIcon,
@@ -25,6 +28,9 @@ const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '/admin/users', label: 'Пользователи', icon: Users },
   { href: '/admin/access', label: 'Доступы', icon: KeyRound },
   { href: '/admin/orders', label: 'Заказы', icon: CreditCard },
+  { href: '/admin/reviews', label: 'Отзывы', icon: Star },
+  { href: '/admin/news', label: 'Новости', icon: Newspaper },
+  { href: '/admin/settings', label: 'Настройки', icon: Settings },
 ];
 
 function shouldAutoCollapse(pathname: string): boolean {

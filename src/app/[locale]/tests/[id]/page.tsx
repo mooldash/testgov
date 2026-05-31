@@ -30,7 +30,7 @@ export default async function TestStartPage({
     include: {
       module: {
         include: {
-          programs: { select: { programId: true } },
+          programs: { select: { program: { select: { id: true, isDemo: true } } } },
         },
       },
       _count: { select: { questions: true, attempts: true } },
@@ -39,27 +39,30 @@ export default async function TestStartPage({
   if (!test) notFound();
 
   const session = await auth();
-  if (test.requireAuth && !session?.user) {
+  const programs = test.module.programs.map((pm) => pm.program);
+  const isDemoTest = programs.some((p) => p.isDemo);
+  // Auth gate: paid tests still require login; demo tests are open to all
+  if (test.requireAuth && !isDemoTest && !session?.user) {
     redirect(`/${locale}/login`);
   }
 
-  // Pick the program context
-  const programIds = test.module.programs.map((pm) => pm.programId);
+  // Pick the program context — prefer a demo program for anonymous, otherwise an owned one
+  const programIds = programs.map((p) => p.id);
   let programId = programIdParam && programIds.includes(programIdParam) ? programIdParam : null;
-  if (!programId && session?.user) {
-    for (const pid of programIds) {
-      if (await hasProgramAccess(session.user.id, pid)) {
-        programId = pid;
+  if (!programId) {
+    for (const p of programs) {
+      const ok = await hasProgramAccess(session?.user?.id ?? null, p.id);
+      if (ok) {
+        programId = p.id;
         break;
       }
     }
   }
   if (!programId) programId = programIds[0] ?? null;
 
-  let allowed = !test.requireAuth;
+  const allowed = await hasTestAccess(session?.user?.id ?? null, test.id);
   let attemptsUsed = 0;
   if (session?.user) {
-    allowed = await hasTestAccess(session.user.id, test.id);
     attemptsUsed = await prisma.attempt.count({
       where: { userId: session.user.id, testId: test.id, finishedAt: { not: null } },
     });

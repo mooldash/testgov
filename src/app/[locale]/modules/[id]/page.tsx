@@ -26,13 +26,12 @@ export default async function ModulePage({
   const t = await getTranslations();
 
   const session = await auth();
-  if (!session?.user) redirect(`/${locale}/login`);
 
   const module = await prisma.module.findUnique({
     where: { id },
     include: {
       programs: {
-        include: { program: { select: { id: true, slug: true } } },
+        include: { program: { select: { id: true, slug: true, isDemo: true } } },
       },
       contents: { where: { locale: dbLocale(locale) } },
       tests: { where: { locale: dbLocale(locale), isPublished: true } },
@@ -43,9 +42,9 @@ export default async function ModulePage({
   // Resolve which program context to show in sidebar / back-link
   let programId = programIdParam;
   if (!programId || !module.programs.some((pm) => pm.programId === programId)) {
-    // Pick the first program the user has access to (or first one if admin)
+    // Pick the first accessible program (demo for anon, otherwise first the user has access to)
     for (const pm of module.programs) {
-      const ok = await hasProgramAccess(session.user.id, pm.programId);
+      const ok = await hasProgramAccess(session?.user?.id ?? null, pm.programId);
       if (ok) {
         programId = pm.programId;
         break;
@@ -61,9 +60,11 @@ export default async function ModulePage({
     );
   }
 
-  const allowed = await hasProgramAccess(session.user.id, programId);
+  const allowed = await hasProgramAccess(session?.user?.id ?? null, programId);
   if (!allowed) {
     const prog = module.programs.find((pm) => pm.programId === programId)?.program;
+    // For anonymous users on a paid program — redirect to login
+    if (!session?.user) redirect(`/${locale}/login`);
     return (
       <div className="container py-12 text-center">
         <p className="text-muted-foreground mb-4">{t('test.no_access')}</p>

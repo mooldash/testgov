@@ -24,6 +24,8 @@ type Program = {
   nameKk: string;
   descriptionRu: string | null;
   descriptionKk: string | null;
+  isDemo?: boolean;
+  isHighlighted?: boolean;
 };
 
 function autoSlug() {
@@ -57,7 +59,7 @@ export function ProgramDialog({
           <Plus className="h-4 w-4 mr-1.5" /> Добавить
         </Button>
       )}
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Редактировать программу' : 'Новая программа'}</DialogTitle>
         </DialogHeader>
@@ -66,7 +68,7 @@ export function ProgramDialog({
             await upsertProgram(fd);
             setOpen(false);
           }}
-          className="grid grid-cols-2 gap-3"
+          className="grid grid-cols-2 gap-4"
         >
           {program && <input type="hidden" name="id" value={program.id} />}
           <Select
@@ -86,6 +88,21 @@ export function ProgramDialog({
           <Field label="Аты (KK)" name="nameKk" defaultValue={program?.nameKk} required />
           <Area label="Описание (RU)" name="descriptionRu" defaultValue={program?.descriptionRu ?? ''} />
           <Area label="Сипаттама (KK)" name="descriptionKk" defaultValue={program?.descriptionKk ?? ''} />
+
+          <div className="col-span-2 grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-4">
+            <CheckboxRow
+              name="isDemo"
+              defaultChecked={program?.isDemo ?? false}
+              title="Доступно для демо"
+              description="Программу можно проходить без регистрации. Появится в самом низу списка."
+            />
+            <CheckboxRow
+              name="isHighlighted"
+              defaultChecked={program?.isHighlighted ?? false}
+              title="Выделить на фоне остальных"
+              description="Карточка получит акцентную рамку и метку «Рекомендуем»."
+            />
+          </div>
 
           <DialogFooter className="col-span-2 mt-2">
             <DialogClose asChild>
@@ -154,6 +171,33 @@ function Area({
       <Label htmlFor={name}>{label}</Label>
       <Textarea id={name} name={name} defaultValue={defaultValue} rows={2} />
     </div>
+  );
+}
+
+function CheckboxRow({
+  name,
+  defaultChecked,
+  title,
+  description,
+}: {
+  name: string;
+  defaultChecked: boolean;
+  title: string;
+  description: string;
+}) {
+  return (
+    <label className="flex items-start gap-3 cursor-pointer rounded-md hover:bg-background/50 p-2 -m-2 transition-colors">
+      <input
+        type="checkbox"
+        name={name}
+        defaultChecked={defaultChecked}
+        className="h-4 w-4 mt-0.5 shrink-0"
+      />
+      <div className="space-y-1">
+        <div className="text-sm font-medium leading-tight">{title}</div>
+        <div className="text-xs text-muted-foreground leading-snug">{description}</div>
+      </div>
+    </label>
   );
 }
 

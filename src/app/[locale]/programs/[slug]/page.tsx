@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { TariffCards } from './TariffCards';
 import { ProgramShell } from '@/components/program/ProgramShell';
 import { JsonLd } from '@/components/seo/JsonLd';
+import { ReviewsSection } from './ReviewsSection';
 
 const baseUrl = process.env.PUBLIC_BASE_URL || 'http://localhost:3005';
 
@@ -100,7 +101,32 @@ export default async function ProgramPage({
     });
     if (a) access = { expiresAt: a.expiresAt };
   }
-  const allowed = session?.user?.role === 'ADMIN' || Boolean(access);
+  const allowed =
+    session?.user?.role === 'ADMIN' || Boolean(access) || program.isDemo;
+
+  // Reviews: own + published others
+  const reviewsRaw = await prisma.review.findMany({
+    where: {
+      programId: program.id,
+      OR: [
+        { isPublished: true },
+        ...(session?.user ? [{ userId: session.user.id }] : []),
+      ],
+    },
+    include: { user: { select: { name: true, email: true, id: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  });
+  const reviews = reviewsRaw.map((r) => ({
+    id: r.id,
+    rating: r.rating,
+    text: r.text,
+    isPublished: r.isPublished,
+    createdAt: r.createdAt,
+    userName: r.user.name || r.user.email.split('@')[0],
+    userId: r.user.id,
+  }));
+  const canReview = Boolean(session?.user && access);
 
   // ────────── LMS view (has access) ──────────
   if (allowed) {
@@ -137,7 +163,37 @@ export default async function ProgramPage({
               </Badge>
             )}
             {session?.user?.role === 'ADMIN' && !access && <Badge variant="secondary">ADMIN</Badge>}
+            {program.isDemo && !access && (
+              <Badge className="bg-emerald-500 text-white hover:bg-emerald-500">
+                {locale === 'kk' ? 'Тегін демо' : 'Бесплатное демо'}
+              </Badge>
+            )}
           </div>
+
+          {program.isDemo && !session?.user && (
+            <div className="mt-6 rounded-lg border border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/30 p-4 flex items-start gap-3">
+              <div className="text-2xl">🎁</div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-emerald-900 dark:text-emerald-200">
+                  {locale === 'kk'
+                    ? 'Сіз демо-режимдесіз — тіркеу қажет емес'
+                    : 'Вы в демо-режиме — регистрация не нужна'}
+                </div>
+                <p className="text-sm text-emerald-900/80 dark:text-emerald-300/80 mt-1">
+                  {locale === 'kk'
+                    ? 'Барлық материалдар мен тесттер ашық. Бірақ нәтижелер сақталмайды — оларды кабинетте сақтау үшін '
+                    : 'Все материалы и тесты открыты. Но результаты не сохраняются — чтобы вести историю в кабинете, '}
+                  <Link
+                    href={`/${locale}/register`}
+                    className="font-medium underline underline-offset-2 hover:no-underline"
+                  >
+                    {locale === 'kk' ? 'тегін тіркеліңіз' : 'зарегистрируйтесь бесплатно'}
+                  </Link>
+                  .
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard
@@ -216,6 +272,16 @@ export default async function ProgramPage({
                 </Link>
               );
             })}
+          </div>
+
+          <div className="mt-12">
+            <ReviewsSection
+              programId={program.id}
+              reviews={reviews}
+              currentUserId={session?.user?.id ?? null}
+              canReview={canReview}
+              locale={locale}
+            />
           </div>
         </div>
       </ProgramShell>
@@ -341,6 +407,16 @@ export default async function ProgramPage({
             </Card>
           );
         })}
+      </div>
+
+      <div className="mt-12 max-w-4xl">
+        <ReviewsSection
+          programId={program.id}
+          reviews={reviews}
+          currentUserId={session?.user?.id ?? null}
+          canReview={canReview}
+          locale={locale}
+        />
       </div>
     </div>
   );

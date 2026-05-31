@@ -5,7 +5,8 @@ import { ProgramsTable, type ProgramRow } from './ProgramsTable';
 export default async function AdminProgramsPage() {
   const [programs, categories] = await Promise.all([
     prisma.program.findMany({
-      orderBy: [{ categoryId: 'asc' }, { order: 'asc' }],
+      // Demo programs always at the bottom of each category
+      orderBy: [{ categoryId: 'asc' }, { isDemo: 'asc' }, { order: 'asc' }],
       include: {
         category: true,
         tariffs: { where: { isPublished: true }, select: { priceTenge: true } },
@@ -33,6 +34,8 @@ export default async function AdminProgramsPage() {
       tariffCount: prices.length,
       moduleCount: p._count.modules,
       isPublished: p.isPublished,
+      isDemo: p.isDemo,
+      isHighlighted: p.isHighlighted,
     };
   });
 

@@ -22,7 +22,6 @@ export default async function RunPage({
   setRequestLocale(locale);
 
   const session = await auth();
-  if (!session?.user) redirect(`/${locale}/login`);
   if (!attemptId) redirect(`/${locale}/tests/${testId}`);
 
   const attempt = await prisma.attempt.findUnique({
@@ -31,26 +30,41 @@ export default async function RunPage({
       test: {
         include: {
           module: {
-            include: { programs: { select: { programId: true } } },
+            include: { programs: { select: { program: { select: { id: true, isDemo: true } } } } },
           },
         },
       },
     },
   });
-  if (!attempt || attempt.userId !== session.user.id || attempt.testId !== testId) {
+  if (!attempt || attempt.testId !== testId) {
+    redirect(`/${locale}/tests/${testId}`);
+  }
+  // Anonymous attempts are only allowed if at least one parent program is demo
+  const isDemoAttempt = attempt.test.module.programs.some((pm) => pm.program.isDemo);
+  if (!attempt.userId && !isDemoAttempt) {
+    redirect(`/${locale}/login`);
+  }
+  if (attempt.userId && session?.user?.id !== attempt.userId) {
     redirect(`/${locale}/tests/${testId}`);
   }
   if (attempt.finishedAt) {
-    redirect(`/${locale}/dashboard/attempts/${attempt.id}`);
+    if (attempt.userId) {
+      redirect(`/${locale}/dashboard/attempts/${attempt.id}`);
+    } else {
+      // anonymous: send back to test start page
+      redirect(`/${locale}/tests/${testId}`);
+    }
   }
 
   // Resolve program context
-  const programIds = attempt.test.module.programs.map((pm) => pm.programId);
+  const programs = attempt.test.module.programs.map((pm) => pm.program);
+  const programIds = programs.map((p) => p.id);
   let programId = programIdParam && programIds.includes(programIdParam) ? programIdParam : null;
   if (!programId) {
-    for (const pid of programIds) {
-      if (await hasProgramAccess(session.user.id, pid)) {
-        programId = pid;
+    for (const p of programs) {
+      const ok = await hasProgramAccess(session?.user?.id ?? null, p.id);
+      if (ok) {
+        programId = p.id;
         break;
       }
     }
@@ -75,6 +89,11 @@ export default async function RunPage({
         questions={sanitized}
         timeLeftSec={timeLeftSec(attempt, attempt.test)}
         requireAnswer={attempt.test.requireAnswer}
+        resultPath={
+          attempt.userId
+            ? `/${locale}/dashboard/attempts/${attempt.id}`
+            : `/${locale}/tests/${testId}/result/${attempt.id}`
+        }
       />
     </div>
   );
