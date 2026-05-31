@@ -68,6 +68,7 @@ export function ProgramsTable({
   const [rows, setRows] = useState(initial);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   // Sync local state when server re-renders with new data
@@ -118,19 +119,45 @@ export function ProgramsTable({
       .filter((r) => r.categoryId === srcCatId)
       .map((r) => r.id);
     startTransition(async () => {
-      await reorderPrograms(srcCatId, orderedIdsInCategory);
-      router.refresh();
+      try {
+        await reorderPrograms(srcCatId, orderedIdsInCategory);
+        router.refresh();
+      } catch (e) {
+        setErrorMsg('Не удалось сохранить порядок. Перезагрузите страницу.');
+        setRows(initial);
+        console.error('reorderPrograms failed', e);
+      }
     });
   }
 
   function togglePublished(id: string, value: boolean) {
+    const prevRows = rows;
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, isPublished: value } : r)));
     startTransition(async () => {
-      await setProgramPublished(id, value);
+      try {
+        await setProgramPublished(id, value);
+      } catch (e) {
+        setErrorMsg('Не удалось переключить публикацию. Попробуйте ещё раз.');
+        setRows(prevRows);
+        console.error('setProgramPublished failed', e);
+      }
     });
   }
 
   return (
+    <>
+      {errorMsg && (
+        <div className="mb-3 rounded-md border border-destructive/40 bg-destructive/10 text-destructive text-sm px-3 py-2 flex items-center justify-between gap-3">
+          <span>{errorMsg}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMsg(null)}
+            className="text-xs hover:underline shrink-0"
+          >
+            Закрыть
+          </button>
+        </div>
+      )}
     <Table>
       <TableHeader>
         <TableRow>
@@ -279,5 +306,6 @@ export function ProgramsTable({
         })}
       </TableBody>
     </Table>
+    </>
   );
 }

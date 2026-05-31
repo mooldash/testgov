@@ -1,6 +1,8 @@
+import Link from 'next/link';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -15,6 +17,8 @@ import { ExtendAccessButton, type ExtendTariff } from './ExtendAccessButton';
 import { RevokeAccessButton } from './RevokeAccessButton';
 import { UserInfoButton } from './UserInfoButton';
 import { AccessFilters } from './AccessFilters';
+
+const PAGE_SIZE = 50;
 
 const SOURCE_LABEL = {
   MANUAL: { label: 'Вручную', variant: 'secondary' as const },
@@ -45,10 +49,13 @@ export default async function AdminAccessPage({
     source?: string;
     paid?: string;
     created?: string;
+    page?: string;
   }>;
 }) {
   const sp = await searchParams;
   const now = new Date();
+  const page = Math.max(1, Number(sp.page) || 1);
+  const skip = (page - 1) * PAGE_SIZE;
 
   // Build Prisma where clause from filters
   const where: Prisma.UserAccessWhereInput = {};
@@ -76,7 +83,7 @@ export default async function AdminAccessPage({
   else if (sp.created === '7d') where.createdAt = { gte: addDays(now, -7) };
   else if (sp.created === '30d') where.createdAt = { gte: addDays(now, -30) };
 
-  const [accesses, totalCount, programs, tariffs, users] = await Promise.all([
+  const [accesses, filteredCount, totalCount, programs, tariffs, users] = await Promise.all([
     prisma.userAccess.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -85,8 +92,10 @@ export default async function AdminAccessPage({
         program: { select: { id: true, nameRu: true, slug: true } },
         tariff: { select: { id: true, nameRu: true, key: true } },
       },
-      take: 200,
+      skip,
+      take: PAGE_SIZE,
     }),
+    prisma.userAccess.count({ where }),
     prisma.userAccess.count(),
     prisma.program.findMany({ orderBy: { order: 'asc' }, select: { id: true, nameRu: true } }),
     prisma.tariff.findMany({
@@ -135,7 +144,7 @@ export default async function AdminAccessPage({
         <GrantAccessDialog users={users} programs={programs} tariffs={tariffs} />
       </div>
 
-      <AccessFilters programs={programs} total={totalCount} filtered={accesses.length} />
+      <AccessFilters programs={programs} total={totalCount} filtered={filteredCount} />
 
       <div className="border rounded-lg overflow-x-auto">
       <Table className="min-w-[960px]">
@@ -233,6 +242,65 @@ export default async function AdminAccessPage({
           })}
         </TableBody>
       </Table>
+      </div>
+      <AccessPagination page={page} totalPages={Math.max(1, Math.ceil(filteredCount / PAGE_SIZE))} from={filteredCount === 0 ? 0 : skip + 1} to={skip + accesses.length} total={filteredCount} sp={sp} />
+    </div>
+  );
+}
+
+function AccessPagination({
+  page,
+  totalPages,
+  from,
+  to,
+  total,
+  sp,
+}: {
+  page: number;
+  totalPages: number;
+  from: number;
+  to: number;
+  total: number;
+  sp: Record<string, string | undefined>;
+}) {
+  if (totalPages <= 1) return null;
+  function buildHref(p: number): string {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) {
+      if (v && k !== 'page') params.set(k, v);
+    }
+    params.set('page', String(p));
+    return `/admin/access?${params.toString()}`;
+  }
+  return (
+    <div className="flex items-center justify-between gap-3 flex-wrap text-sm">
+      <span className="text-muted-foreground tabular-nums">
+        {from}–{to} из {total}
+      </span>
+      <div className="flex gap-1">
+        <Button asChild variant="outline" size="sm" disabled={page <= 1}>
+          <Link
+            href={page <= 1 ? '#' : buildHref(page - 1)}
+            aria-disabled={page <= 1}
+            tabIndex={page <= 1 ? -1 : 0}
+            className={page <= 1 ? 'pointer-events-none opacity-50' : ''}
+          >
+            ← Назад
+          </Link>
+        </Button>
+        <span className="inline-flex items-center px-3 tabular-nums text-muted-foreground">
+          {page} / {totalPages}
+        </span>
+        <Button asChild variant="outline" size="sm" disabled={page >= totalPages}>
+          <Link
+            href={page >= totalPages ? '#' : buildHref(page + 1)}
+            aria-disabled={page >= totalPages}
+            tabIndex={page >= totalPages ? -1 : 0}
+            className={page >= totalPages ? 'pointer-events-none opacity-50' : ''}
+          >
+            Дальше →
+          </Link>
+        </Button>
       </div>
     </div>
   );

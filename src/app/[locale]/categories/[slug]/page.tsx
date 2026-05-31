@@ -61,24 +61,12 @@ export default async function CategoryPage({
   setRequestLocale(locale);
   const t = await getTranslations();
 
+  // Note: we deliberately do NOT include modules->module->tests here.
+  // Previously this caused 5+ nested SQL roundtrips per category render.
+  // Instead we fetch programs cheap (just tariffs.priceTenge) and then run a
+  // SINGLE aggregated GROUP BY query for all programs at once — see below.
   const programInclude = {
     tariffs: { where: { isPublished: true }, select: { priceTenge: true } },
-    modules: {
-      include: {
-        module: {
-          include: {
-            tests: {
-              where: { locale: dbLocale(locale), isPublished: true },
-              select: {
-                timeLimitSec: true,
-                passingScore: true,
-                _count: { select: { questions: true } },
-              },
-            },
-          },
-        },
-      },
-    },
   } as const;
 
   const categoryRaw = await prisma.category.findUnique({
@@ -138,6 +126,50 @@ export default async function CategoryPage({
     accesses.forEach((a) => ownedProgramIds.add(a.programId));
   }
 
+  // Single aggregated query: for every program in this category get total
+  // questions, total time, and average passing score across all published
+  // tests of the current locale. Replaces the previous nested include
+  // (program→modules→module→tests→_count.questions).
+  const programIds = category.programs.map((p) => p.id);
+  const programStats = new Map<
+    string,
+    { totalQuestions: number; totalTimeSec: number; avgPassing: number | null }
+  >();
+  if (programIds.length) {
+    const rows = await prisma.$queryRaw<
+      Array<{
+        programId: string;
+        totalQuestions: number;
+        totalTimeSec: number;
+        avgPassing: number | null;
+      }>
+    >`
+      SELECT
+        pm."programId" AS "programId",
+        COALESCE(SUM(qc.cnt), 0)::int AS "totalQuestions",
+        COALESCE(SUM(t."timeLimitSec"), 0)::int AS "totalTimeSec",
+        AVG(t."passingScore")::int AS "avgPassing"
+      FROM "ProgramModule" pm
+      JOIN "Test" t ON t."moduleId" = pm."moduleId"
+        AND t."locale" = ${dbLocale(locale)}::"Locale"
+        AND t."isPublished" = true
+      LEFT JOIN (
+        SELECT "testId", COUNT(*)::int AS cnt
+        FROM "Question"
+        GROUP BY "testId"
+      ) qc ON qc."testId" = t.id
+      WHERE pm."programId" = ANY(${programIds}::text[])
+      GROUP BY pm."programId"
+    `;
+    for (const r of rows) {
+      programStats.set(r.programId, {
+        totalQuestions: r.totalQuestions,
+        totalTimeSec: r.totalTimeSec,
+        avgPassing: r.avgPassing,
+      });
+    }
+  }
+
   const categoryName = pluckLocalized(category, 'name', locale);
   const breadcrumbsLd = {
     '@context': 'https://schema.org',
@@ -186,16 +218,11 @@ export default async function CategoryPage({
 
       <div className="space-y-3">
         {category.programs.map((p) => {
-          const allTests = p.modules.flatMap((pm) => pm.module.tests);
-          const totalQuestions = allTests.reduce((sum, tst) => sum + (tst._count?.questions ?? 0), 0);
-          const totalTimeSec = allTests.reduce((sum, tst) => sum + (tst.timeLimitSec ?? 0), 0);
+          const stats = programStats.get(p.id);
+          const totalQuestions = stats?.totalQuestions ?? 0;
+          const totalTimeSec = stats?.totalTimeSec ?? 0;
           const totalTimeMin = Math.round(totalTimeSec / 60);
-          const passingScores = allTests
-            .map((tst) => tst.passingScore)
-            .filter((s): s is number => typeof s === 'number');
-          const avgPassing = passingScores.length
-            ? Math.round(passingScores.reduce((a, b) => a + b, 0) / passingScores.length)
-            : null;
+          const avgPassing = stats?.avgPassing ?? null;
 
           const owned = ownedProgramIds.has(p.id);
           const description = pluckLocalized(p, 'description', locale);
