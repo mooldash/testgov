@@ -8,9 +8,12 @@ async function main() {
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'changeme';
   const passwordHash = await bcrypt.hash(adminPassword, 10);
 
+  // passwordHash in `update` so re-running `npm run prisma:seed` resets
+  // the default credentials back to documented values — protects against
+  // someone changing the password via /admin and forgetting.
   await prisma.user.upsert({
     where: { email: adminEmail },
-    update: { role: 'ADMIN', phone: '+7 700 000 00 01' },
+    update: { role: 'ADMIN', phone: '+7 700 000 00 01', passwordHash },
     create: {
       email: adminEmail,
       passwordHash,
@@ -22,12 +25,13 @@ async function main() {
   });
 
   const demoUserEmail = 'user@testgov.kz';
+  const demoUserHash = await bcrypt.hash('user1234', 10);
   await prisma.user.upsert({
     where: { email: demoUserEmail },
-    update: { phone: '+7 700 000 00 02' },
+    update: { phone: '+7 700 000 00 02', passwordHash: demoUserHash },
     create: {
       email: demoUserEmail,
-      passwordHash: await bcrypt.hash('user1234', 10),
+      passwordHash: demoUserHash,
       name: 'Demo User',
       phone: '+7 700 000 00 02',
       role: 'USER',
@@ -804,7 +808,7 @@ async function main() {
     const persona = demoPersonas[i];
     const user = await prisma.user.upsert({
       where: { email: persona.email },
-      update: { name: persona.name, phone: persona.phone },
+      update: { name: persona.name, phone: persona.phone, passwordHash: sharedPasswordHash },
       create: {
         email: persona.email,
         passwordHash: sharedPasswordHash,

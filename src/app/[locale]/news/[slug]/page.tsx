@@ -70,7 +70,7 @@ export default async function NewsDetailPage({
         ← {isKk ? 'Барлық жаңалықтар' : 'Все новости'}
       </Link>
 
-      <div className="mt-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_18rem] gap-10">
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_14rem] lg:grid-cols-[minmax(0,1fr)_18rem] gap-6 md:gap-6 lg:gap-10">
         <div className="min-w-0">
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{title}</h1>
 
@@ -107,7 +107,7 @@ export default async function NewsDetailPage({
         </div>
 
         {otherArticles.length > 0 && (
-          <aside className="lg:sticky lg:top-20 lg:self-start">
+          <aside className="md:sticky md:top-20 md:self-start">
             <div className="rounded-xl border bg-card p-5">
               <h2 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground mb-4">
                 {isKk ? 'Сондай-ақ оқыңыз' : 'Читайте также'}
