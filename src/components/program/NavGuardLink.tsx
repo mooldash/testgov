@@ -5,7 +5,23 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
+/**
+ * Wraps a navigation link with a confirmation modal — used inside the test
+ * runner's sidebar so the user doesn't accidentally lose an in-progress
+ * attempt. The modal is rendered via Radix Portal (DialogContent), which
+ * mounts in document.body — required because the sidebar uses `sticky` and
+ * creates its own stacking context, which would clip a locally-positioned
+ * overlay underneath answer cards.
+ */
 export function NavGuardLink({
   href,
   className,
@@ -31,7 +47,6 @@ export function NavGuardLink({
     return () => window.removeEventListener('beforeunload', handler);
   }, []);
 
-  // Don't intercept if it's a link to the current page
   if (href === pathname) {
     return (
       <Link href={href} className={className}>
@@ -69,47 +84,36 @@ export function NavGuardLink({
         {children}
       </a>
 
-      {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in"
-          onClick={() => setOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="nav-guard-title"
-        >
-          <div
-            className="w-full max-w-sm rounded-xl border bg-card shadow-xl p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
                 <AlertTriangle className="h-5 w-5" />
               </div>
-              <div className="flex-1">
-                <h3 id="nav-guard-title" className="font-semibold leading-tight">
-                  {L.title}
-                </h3>
-                <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{L.body}</p>
+              <div className="flex-1 space-y-1.5">
+                <DialogTitle className="leading-tight">{L.title}</DialogTitle>
+                <DialogDescription className="leading-relaxed">{L.body}</DialogDescription>
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
-                {L.cancel}
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  setOpen(false);
-                  router.push(href);
-                }}
-              >
-                {L.confirm}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+          </DialogHeader>
+          <DialogFooter className="gap-2 mt-2">
+            <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
+              {L.cancel}
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                setOpen(false);
+                router.push(href);
+              }}
+            >
+              {L.confirm}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -30,7 +30,7 @@ export default async function TestStartPage({
     include: {
       module: {
         include: {
-          programs: { select: { program: { select: { id: true, isDemo: true } } } },
+          programs: { select: { program: { select: { id: true, slug: true, isDemo: true } } } },
         },
       },
       _count: { select: { questions: true, attempts: true } },
@@ -69,13 +69,20 @@ export default async function TestStartPage({
   }
   const attemptsLeft = test.maxAttempts == null ? null : Math.max(0, test.maxAttempts - attemptsUsed);
 
+  // Back link goes to the parent program overview (not the bare module —
+  // since each TEST_COLLECTION module wraps a single test, the module page
+  // would just show the same test card and be useless click).
+  const programObj = programs.find((p) => p.id === programId);
+  const backHref = programObj ? `/${locale}/programs/${programObj.slug}` : `/${locale}/categories`;
+  const backLabel = locale === 'kk' ? 'Бағдарламаға' : 'К программе';
+
   const content = (
     <div className="p-6 md:p-10 max-w-2xl">
       <Link
-        href={`/${locale}/modules/${test.moduleId}${programId ? `?program=${programId}` : ''}`}
+        href={backHref}
         className="text-sm text-muted-foreground hover:text-foreground"
       >
-        ← {t('test.back_to_module')}
+        ← {backLabel}
       </Link>
       <h1 className="text-3xl font-semibold mt-2 mb-6">{test.title}</h1>
 
