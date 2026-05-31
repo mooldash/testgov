@@ -291,8 +291,12 @@ export async function setAppSetting(formData: FormData) {
 // Modules are independent entities. Attach them to programs via ProgramModule.
 const ModuleSchema = z.object({
   id: z.string().optional(),
-  type: z.enum(['LAW', 'TEST_COLLECTION']),
+  type: z.enum(['LAW', 'TEST_COLLECTION', 'EXAM']),
   isPublished: z.coerce.boolean().default(true),
+  // EXAM-only settings (raw form: minutes → converted to seconds below)
+  examQuestionsPerTest: z.coerce.number().int().min(1).max(500).optional(),
+  examTimeLimitMin: z.coerce.number().int().min(1).max(600).optional(),
+  examPassingScore: z.coerce.number().int().min(1).max(100).optional(),
   // Only used on create — attach the new module to this program automatically
   attachToProgramId: z.string().optional(),
 });
@@ -303,16 +307,34 @@ export async function upsertModule(formData: FormData) {
     id: formData.get('id') || undefined,
     type: formData.get('type'),
     isPublished: formData.get('isPublished') === 'on' || formData.get('isPublished') === 'true',
+    examQuestionsPerTest: formData.get('examQuestionsPerTest') || undefined,
+    examTimeLimitMin: formData.get('examTimeLimitMin') || undefined,
+    examPassingScore: formData.get('examPassingScore') || undefined,
     attachToProgramId: formData.get('attachToProgramId') || undefined,
   });
+
+  // Compute EXAM-only persisted fields. For non-EXAM modules — store null.
+  const examFields =
+    data.type === 'EXAM'
+      ? {
+          examQuestionsPerTest: data.examQuestionsPerTest ?? 15,
+          examTimeLimitSec: data.examTimeLimitMin ? data.examTimeLimitMin * 60 : 5400,
+          examPassingScore: data.examPassingScore ?? 60,
+        }
+      : {
+          examQuestionsPerTest: null,
+          examTimeLimitSec: null,
+          examPassingScore: null,
+        };
+
   if (data.id) {
     await prisma.module.update({
       where: { id: data.id },
-      data: { type: data.type, isPublished: data.isPublished },
+      data: { type: data.type, isPublished: data.isPublished, ...examFields },
     });
   } else {
     const created = await prisma.module.create({
-      data: { type: data.type, isPublished: data.isPublished },
+      data: { type: data.type, isPublished: data.isPublished, ...examFields },
     });
     if (data.attachToProgramId) {
       const max = await prisma.programModule.aggregate({

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import { BookOpen, Target, Calendar, GraduationCap } from 'lucide-react';
+import { BookOpen, Target, Calendar, GraduationCap, Award, Sparkles } from 'lucide-react';
 import { isLocale, dbLocale } from '@/i18n/config';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
@@ -14,6 +14,7 @@ import { TariffCards } from './TariffCards';
 import { ProgramShell } from '@/components/program/ProgramShell';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { ReviewsSection } from './ReviewsSection';
+import { StartExamButton } from './StartExamButton';
 
 const baseUrl = process.env.PUBLIC_BASE_URL || 'http://localhost:3005';
 
@@ -232,6 +233,43 @@ export default async function ProgramPage({
           </h2>
           <div className="space-y-2">
             {program.modules.map((m, idx) => {
+              if (m.type === 'EXAM') {
+                const title =
+                  m.contents[0]?.title ??
+                  (locale === 'kk' ? 'Қорытынды емтихан' : 'Итоговый экзамен');
+                const perTest = m.examQuestionsPerTest ?? 15;
+                const minutes = Math.round((m.examTimeLimitSec ?? 5400) / 60);
+                return (
+                  <div
+                    key={m.id}
+                    className="rounded-xl border-2 border-amber-500/40 bg-gradient-to-br from-amber-50/60 to-transparent dark:from-amber-950/20 p-5"
+                  >
+                    <div className="flex items-start gap-4 mb-3">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                        <Award className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide font-semibold text-amber-700 dark:text-amber-400">
+                          <Sparkles className="h-3 w-3" />
+                          {locale === 'kk' ? 'Қорытынды емтихан' : 'Итоговый экзамен'}
+                        </div>
+                        <div className="text-lg font-semibold leading-tight mt-0.5">{title}</div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {locale === 'kk'
+                            ? `Әр тесттен ${perTest} сұрақ · ${minutes} мин · өту балы ${m.examPassingScore ?? 60}%`
+                            : `${perTest} вопросов с каждого теста · ${minutes} мин · проходной ${m.examPassingScore ?? 60}%`}
+                        </div>
+                      </div>
+                    </div>
+                    <StartExamButton
+                      moduleId={m.id}
+                      programId={program.id}
+                      locale={locale}
+                      label={locale === 'kk' ? 'Емтиханды бастау' : 'Начать экзамен'}
+                    />
+                  </div>
+                );
+              }
               if (m.type === 'LAW') {
                 const title =
                   m.contents[0]?.title ?? (locale === 'kk' ? 'Оқу материалы' : 'Учебный материал');

@@ -9,8 +9,10 @@ import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { hasProgramAccess } from '@/lib/access';
 import { sanitizeHtml } from '@/lib/sanitize';
+import { Award, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProgramShell } from '@/components/program/ProgramShell';
+import { StartExamButton } from '../../programs/[slug]/StartExamButton';
 
 export default async function ModulePage({
   params,
@@ -79,6 +81,9 @@ export default async function ModulePage({
 
   const content = module.contents[0];
   const prog = module.programs.find((pm) => pm.programId === programId)?.program;
+  const isExam = module.type === 'EXAM';
+  const examTitle =
+    content?.title ?? (locale === 'kk' ? 'Қорытынды емтихан' : 'Итоговый экзамен');
 
   return (
     <ProgramShell
@@ -96,7 +101,43 @@ export default async function ModulePage({
           </Link>
         )}
 
-        {content && (
+        {isExam ? (
+          <Card className="mt-4 border-2 border-amber-500/40 bg-gradient-to-br from-amber-50/60 to-transparent dark:from-amber-950/20">
+            <CardContent className="pt-6 pb-6 px-6 space-y-4">
+              <div className="flex items-start gap-4">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                  <Award className="h-6 w-6" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide font-semibold text-amber-700 dark:text-amber-400">
+                    <Sparkles className="h-3 w-3" />
+                    {locale === 'kk' ? 'Қорытынды емтихан' : 'Итоговый экзамен'}
+                  </div>
+                  <h1 className="text-2xl font-bold leading-tight mt-1">{examTitle}</h1>
+                </div>
+              </div>
+
+              <div className="text-sm text-muted-foreground leading-relaxed">
+                {locale === 'kk'
+                  ? `Бағдарламаның әр тестінен ${module.examQuestionsPerTest ?? 15} кездейсоқ сұрақ. ` +
+                    `Уақыт: ${Math.round((module.examTimeLimitSec ?? 5400) / 60)} мин. ` +
+                    `Өту балы: ${module.examPassingScore ?? 60}%.`
+                  : `${module.examQuestionsPerTest ?? 15} случайных вопросов с каждого теста программы. ` +
+                    `Время на весь экзамен: ${Math.round((module.examTimeLimitSec ?? 5400) / 60)} мин. ` +
+                    `Проходной балл: ${module.examPassingScore ?? 60}%.`}
+              </div>
+
+              <StartExamButton
+                moduleId={module.id}
+                programId={programId}
+                locale={locale}
+                label={locale === 'kk' ? 'Емтиханды бастау' : 'Начать экзамен'}
+              />
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {!isExam && content && (
           <article className="mt-4">
             <h1 className="text-3xl font-semibold mb-6">{content.title}</h1>
             <div
@@ -106,7 +147,7 @@ export default async function ModulePage({
           </article>
         )}
 
-        {module.tests.length > 0 && (
+        {!isExam && module.tests.length > 0 && (
           <div className="mt-10">
             <h2 className="text-xl font-semibold mb-3">{t('module.tests')}</h2>
             <div className="space-y-2">

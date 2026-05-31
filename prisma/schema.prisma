@@ -20,6 +20,7 @@ enum Locale {
 enum ModuleType {
   LAW
   TEST_COLLECTION
+  EXAM
 }
 
 enum TestMode {
@@ -52,10 +53,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  attempts Attempt[]
-  access   UserAccess[]
-  orders   Order[]
-  reviews  Review[]
+  attempts     Attempt[]
+  examAttempts ExamAttempt[]
+  access       UserAccess[]
+  orders       Order[]
+  reviews      Review[]
 }
 
 model Category {
@@ -122,6 +124,7 @@ model Program {
   access          UserAccess[]
   orders          Order[]
   reviews         Review[]
+  examAttempts    ExamAttempt[]
   extraCategories CategoryProgram[]
 
   createdAt DateTime @default(now())
@@ -159,9 +162,16 @@ model Module {
   type        ModuleType @default(TEST_COLLECTION)
   isPublished Boolean    @default(true)
 
-  contents ModuleContent[]
-  tests    Test[]
-  programs ProgramModule[]
+  // Settings used only when type=EXAM. Exam pulls random questions
+  // from all TEST_COLLECTION tests of the same program.
+  examQuestionsPerTest Int? // e.g. 15 (per source test)
+  examTimeLimitSec     Int? // e.g. 5400 (90 min, total)
+  examPassingScore     Int? // e.g. 60
+
+  contents     ModuleContent[]
+  tests        Test[]
+  programs     ProgramModule[]
+  examAttempts ExamAttempt[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -237,6 +247,7 @@ model Question {
 
   answers        Answer[]
   attemptAnswers AttemptAnswer[]
+  examAnswers    ExamAnswer[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -253,6 +264,7 @@ model Answer {
   order      Int      @default(0)
 
   attemptAnswers AttemptAnswer[]
+  examAnswers    ExamAnswer[]
 
   @@index([questionId])
 }
@@ -365,4 +377,47 @@ model Article {
   updatedAt DateTime @updatedAt
 
   @@index([isPublished, publishedAt])
+}
+
+model ExamAttempt {
+  id          String    @id @default(cuid())
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleId    String
+  module      Module    @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  programId   String
+  program     Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  score       Int?
+  passed      Boolean?
+
+  // Snapshot of chosen questions, frozen at exam start:
+  // [{ testId, testTitle, questionIds: [String] }, ...]
+  chapters    Json
+
+  answers ExamAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([moduleId])
+  @@index([programId])
+}
+
+model ExamAnswer {
+  id            String      @id @default(cuid())
+  examAttemptId String
+  examAttempt   ExamAttempt @relation(fields: [examAttemptId], references: [id], onDelete: Cascade)
+  questionId    String
+  question      Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answerId      String?
+  answer        Answer?     @relation(fields: [answerId], references: [id], onDelete: SetNull)
+  isCorrect     Boolean     @default(false)
+  answeredAt    DateTime    @default(now())
+
+  @@unique([examAttemptId, questionId])
+  @@index([questionId])
 }

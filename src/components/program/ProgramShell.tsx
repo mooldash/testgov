@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { BookOpen, Target, LayoutDashboard } from 'lucide-react';
+import { BookOpen, Target, LayoutDashboard, Award } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
 import { dbLocale, type AppLocale } from '@/i18n/config';
 import { pluckLocalized, cn } from '@/lib/utils';
@@ -97,6 +97,25 @@ export async function ProgramShell({
 
           {program.modules.map((pm) => {
             const m = pm.module;
+            if (m.type === 'EXAM') {
+              const title =
+                m.contents[0]?.title ??
+                (locale === 'kk' ? 'Қорытынды емтихан' : 'Итоговый экзамен');
+              // EXAM module routes via /modules/[id] which redirects to start
+              const href = `/${locale}/modules/${m.id}?program=${program.id}`;
+              const active = current.type === 'module' && current.id === m.id;
+              return (
+                <SidebarItem
+                  key={m.id}
+                  href={href}
+                  icon={<Award className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
+                  label={title}
+                  active={active}
+                  guarded={guarded}
+                  locale={locale}
+                />
+              );
+            }
             if (m.type === 'LAW') {
               const title =
                 m.contents[0]?.title ?? (locale === 'kk' ? 'Оқу материалы' : 'Учебный материал');

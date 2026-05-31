@@ -398,6 +398,43 @@ async function main() {
     });
   }
 
+  // ── Example EXAM module for the administrative-base program ──
+  const examModule = await prisma.module.upsert({
+    where: { id: 'exam-mod-administrative-base' },
+    update: {
+      type: 'EXAM',
+      examQuestionsPerTest: 5,
+      examTimeLimitSec: 1800,
+      examPassingScore: 60,
+    },
+    create: {
+      id: 'exam-mod-administrative-base',
+      type: 'EXAM',
+      isPublished: true,
+      examQuestionsPerTest: 5,
+      examTimeLimitSec: 1800,
+      examPassingScore: 60,
+    },
+  });
+  for (const [locale, title] of [
+    ['RU' as const, 'Итоговый экзамен по АГС'],
+    ['KK' as const, 'МҚА бойынша қорытынды емтихан'],
+  ]) {
+    await prisma.moduleContent.upsert({
+      where: { moduleId_locale: { moduleId: examModule.id, locale } },
+      update: { title },
+      create: { moduleId: examModule.id, locale, title, bodyHtml: '' },
+    });
+  }
+  const admProg = await prisma.program.findUnique({ where: { slug: 'administrative-base' } });
+  if (admProg) {
+    await prisma.programModule.upsert({
+      where: { programId_moduleId: { programId: admProg.id, moduleId: examModule.id } },
+      update: {},
+      create: { programId: admProg.id, moduleId: examModule.id, order: 999 },
+    });
+  }
+
   // ── MODULES (independent of programs; attached via ProgramModule) ──
   // Skip if any module already exists (idempotent)
   const moduleCount = await prisma.module.count();
